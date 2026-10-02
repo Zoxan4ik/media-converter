@@ -1,0 +1,3225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Универсальный медиа-конвертер</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --bg:#0b1020; --bg2:#121a33;
+    --card:rgba(255,255,255,.05);
+    --border:rgba(255,255,255,.12);
+    --text:#e8ecf8; --muted:#8b96b8;
+    --accent:#5b8cff; --accent2:#a855f7;
+    --ok:#22c55e; --err:#f87171;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    min-height:100vh; font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    color:var(--text);
+    background:
+      radial-gradient(900px 600px at 10% -10%, rgba(91,140,255,.25), transparent 60%),
+      radial-gradient(800px 600px at 110% 10%, rgba(168,85,247,.22), transparent 60%),
+      linear-gradient(180deg,var(--bg),var(--bg2));
+    display:flex; flex-direction:column; align-items:center;
+    padding:36px 16px 60px;
+    position:relative;
+  }
+  header{text-align:center;margin-bottom:24px;position:relative;width:100%}
+  header h1{
+    font-size:clamp(22px,4vw,34px);font-weight:800;letter-spacing:-.5px;
+    background:linear-gradient(90deg,#7aa2ff,#c084fc,#5b8cff);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header p{color:var(--muted);margin-top:8px;font-size:13.5px}
+
+  .app{
+    width:min(980px,100%);
+    background:var(--card);border:1px solid var(--border);border-radius:20px;
+    padding:22px;backdrop-filter:blur(14px);
+    box-shadow:0 24px 60px rgba(0,0,0,.45);
+  }
+
+  .url-panel{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+  .url-panel input[type=url]{
+    flex:1;min-width:240px;padding:11px 14px;border-radius:10px;
+    background:#141c33;color:var(--text);
+    border:1px solid var(--border);font-size:13.5px;outline:none;font-family:inherit;
+  }
+  .url-panel input[type=url]:focus{border-color:var(--accent)}
+  .url-panel button{white-space:nowrap;padding:11px 20px}
+  .url-note{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:18px}
+  .url-note.busy{color:var(--accent)}
+  .url-note.err{color:var(--err)}
+  .url-note.ok{color:var(--ok)}
+
+  .drop{
+    border:2px dashed rgba(255,255,255,.22);border-radius:16px;
+    padding:32px 20px;text-align:center;cursor:pointer;transition:.25s;
+    background:rgba(255,255,255,.02);
+  }
+  .drop:hover,.drop.over{
+    border-color:var(--accent);background:rgba(91,140,255,.10);transform:translateY(-2px);
+  }
+  .drop .icon{font-size:42px;line-height:1;margin-bottom:10px;display:block}
+  .drop b{font-size:15.5px}
+  .drop small{display:block;color:var(--muted);margin-top:8px;font-size:12.5px}
+  input[type=file]{display:none}
+
+  .preview{display:none;gap:18px;align-items:flex-start;margin-top:18px;
+    padding:14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--border)}
+  .preview.show{display:flex;flex-wrap:wrap}
+  .thumb{
+    width:100px;height:100px;flex:0 0 auto;border-radius:12px;
+    background:
+      linear-gradient(45deg,#2a3352 25%,transparent 25%,transparent 75%,#2a3352 75%),
+      linear-gradient(45deg,#2a3352 25%,#1b2238 25%,#1b2238 75%,#2a3352 75%);
+    background-size:16px 16px;background-position:0 0,8px 8px;
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    border:1px solid var(--border);
+  }
+  .thumb img{max-width:100%;max-height:100%;object-fit:contain;display:block}
+  .preview.video-mode .thumb{
+    width:100%;height:auto;max-height:340px;aspect-ratio:16/9;
+    background:#000;border-radius:12px;
+  }
+  .preview.video-mode video{width:100%;height:100%;display:block;background:#000;border-radius:12px}
+  .meta{flex:1;min-width:200px;font-size:13.5px;color:var(--muted);line-height:1.85}
+  .meta b{color:var(--text);font-weight:600}
+
+  .formats-wrap{display:none;margin-top:22px}
+  .formats-wrap.show{display:block}
+  .formats-title{font-size:12px;text-transform:uppercase;letter-spacing:.09em;
+    color:var(--muted);margin-bottom:10px;font-weight:700}
+  .formats{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:8px}
+  .fmt{
+    font-family:inherit;font-size:12.5px;font-weight:800;letter-spacing:.4px;
+    padding:11px 4px;border-radius:11px;cursor:pointer;
+    background:rgba(255,255,255,.05);color:var(--text);
+    border:1px solid var(--border);transition:.18s;
+  }
+  .fmt:hover:not(:disabled){border-color:var(--accent);transform:translateY(-1px)}
+  .fmt.active{
+    background:linear-gradient(135deg,rgba(91,140,255,.35),rgba(168,85,247,.35));
+    border-color:var(--accent);box-shadow:0 8px 20px rgba(91,140,255,.28);
+  }
+  .fmt:disabled{opacity:.25;cursor:not-allowed;text-decoration:line-through}
+
+  .controls{display:none;margin-top:22px}
+  .controls.show{display:block}
+  .group{margin-bottom:18px}
+  .group > label.title{
+    display:block;font-size:12px;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--muted);margin-bottom:10px;font-weight:700;
+  }
+  .sizes{display:flex;flex-wrap:wrap;gap:8px}
+  .sizes label{
+    display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:10px;
+    border:1px solid var(--border);background:rgba(255,255,255,.04);
+    cursor:pointer;font-size:13px;user-select:none;transition:.18s;
+  }
+  .sizes label:hover{border-color:var(--accent)}
+  .sizes input{accent-color:var(--accent);cursor:pointer}
+  .sizes label:has(input:checked){
+    background:linear-gradient(135deg,rgba(91,140,255,.28),rgba(168,85,247,.28));
+    border-color:var(--accent);
+  }
+  .row{display:flex;flex-wrap:wrap;gap:16px}
+  .row .group{flex:1;min-width:170px}
+  select,input[type=number],input[type=text],input[type=color]{
+    width:100%;padding:10px 12px;border-radius:10px;
+    background:#141c33;color:var(--text);
+    border:1px solid var(--border);font-size:13.5px;outline:none;font-family:inherit;
+  }
+  select:focus,input[type=number]:focus{border-color:var(--accent)}
+  input[type=color]{padding:4px;height:42px;cursor:pointer}
+
+  .slider-wrap{display:flex;align-items:center;gap:14px}
+  input[type=range]{
+    flex:1;-webkit-appearance:none;appearance:none;height:6px;border-radius:3px;
+    background:linear-gradient(90deg,var(--accent),var(--accent2));outline:none;cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:18px;height:18px;border-radius:50%;
+    background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:pointer;
+  }
+  input[type=range]::-moz-range-thumb{
+    width:18px;height:18px;border-radius:50%;background:#fff;border:none;
+    box-shadow:0 2px 8px rgba(0,0,0,.5);cursor:pointer;
+  }
+  .slider-val{min-width:52px;text-align:center;font-size:13px;font-weight:700;
+    color:var(--accent);font-variant-numeric:tabular-nums}
+
+  .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:6px}
+  button.action{
+    font-family:inherit;font-size:14.5px;font-weight:700;
+    padding:13px 24px;border-radius:12px;border:none;cursor:pointer;
+    transition:.2s;letter-spacing:.2px;
+  }
+  .btn-primary{
+    flex:1;min-width:200px;color:#fff;
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 10px 26px rgba(91,140,255,.35);
+  }
+  .btn-primary:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 14px 32px rgba(91,140,255,.5)}
+  .btn-primary:disabled{opacity:.4;cursor:not-allowed;box-shadow:none}
+  .btn-ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border)}
+  .btn-ghost:hover{background:rgba(255,255,255,.12)}
+
+  .status{margin-top:16px;font-size:13.5px;min-height:20px;color:var(--muted)}
+  .status.ok{color:var(--ok)}
+  .status.err{color:var(--err)}
+  .progress{display:none;margin-top:10px;height:6px;border-radius:3px;
+    background:rgba(255,255,255,.08);overflow:hidden}
+  .progress.show{display:block}
+  .progress .bar{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    transition:width .15s}
+
+  .result{display:none;margin-top:18px;padding:18px;border-radius:14px;
+    background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.35)}
+  .result.show{display:block}
+  .result .head{display:flex;align-items:center;gap:10px;margin-bottom:14px;
+    font-weight:700;color:#86efac;flex-wrap:wrap}
+  .result .head .badge{font-size:11px;padding:3px 8px;border-radius:6px;
+    background:rgba(255,255,255,.1);color:var(--text);font-weight:600}
+  .preview-area{
+    display:flex;align-items:center;justify-content:center;
+    background:
+      linear-gradient(45deg,#2a3352 25%,transparent 25%,transparent 75%,#2a3352 75%),
+      linear-gradient(45deg,#2a3352 25%,#1b2238 25%,#1b2238 75%,#2a3352 75%);
+    background-size:20px 20px;background-position:0 0,10px 10px;
+    border-radius:12px;padding:16px;margin-bottom:14px;min-height:120px;
+  }
+  .preview-area img,.preview-area video{max-width:100%;max-height:380px;display:block;border-radius:8px}
+  .ico-list{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+  .ico-item{background:rgba(0,0,0,.28);border:1px solid var(--border);
+    border-radius:10px;padding:8px;text-align:center;min-width:64px}
+  .ico-item img{display:block;margin:0 auto 6px;image-rendering:pixelated}
+  .ico-item span{font-size:11px;color:var(--muted)}
+
+  footer{margin-top:26px;color:var(--muted);font-size:12px;text-align:center;line-height:1.7}
+  footer kbd{background:rgba(255,255,255,.08);border:1px solid var(--border);
+    border-radius:5px;padding:1px 6px;font-size:11px}
+  .hint{color:var(--muted);font-size:12px;margin-top:6px;font-weight:400;
+    text-transform:none;letter-spacing:0;line-height:1.5}
+
+  .estimate{
+    margin-top:8px;padding:9px 12px;border-radius:9px;
+    background:rgba(91,140,255,.10);border:1px solid rgba(91,140,255,.28);
+    font-size:12.5px;color:#a8bfff;font-weight:600;
+  }
+
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{
+    font-family:inherit;font-size:12.5px;font-weight:700;
+    padding:8px 14px;border-radius:10px;cursor:pointer;
+    background:rgba(255,255,255,.05);color:var(--text);
+    border:1px solid var(--border);transition:.18s;
+  }
+  .chip:hover{border-color:var(--accent)}
+  .chip.active{
+    background:linear-gradient(135deg,rgba(91,140,255,.35),rgba(168,85,247,.35));
+    border-color:var(--accent);
+  }
+
+  .frame-counter{
+    margin-top:10px;padding:10px 14px;border-radius:10px;
+    background:rgba(168,85,247,.10);border:1px solid rgba(168,85,247,.32);
+    font-size:12.5px;color:#d8b4fe;font-weight:600;
+    font-variant-numeric:tabular-nums;
+  }
+  .frame-counter b{color:#fff}
+
+  /* ============ TIMELINE / TRIM UI ============ */
+  .trim-wrap{
+    background:rgba(0,0,0,.25);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:14px;
+  }
+  .trim-info{
+    display:flex;gap:18px;flex-wrap:wrap;
+    font-size:12.5px;color:var(--muted);
+    margin-bottom:10px;
+    font-variant-numeric:tabular-nums;
+  }
+  .trim-info b{color:var(--text);font-weight:700}
+  .trim-info .accent b{color:var(--accent)}
+  .trim-info .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:8px;
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--border);
+  }
+  .trim-info .pill.accent{
+    background:rgba(91,140,255,.12);
+    border-color:rgba(91,140,255,.35);
+  }
+
+  .timeline{
+    position:relative;
+    height:72px;
+    border-radius:10px;
+    overflow:hidden;
+    background:#000;
+    border:1px solid var(--border);
+    cursor:pointer;
+    user-select:none;
+    touch-action:none;
+    box-shadow:inset 0 0 30px rgba(0,0,0,.6);
+  }
+  .timeline.loading::after{
+    content:'Загрузка кадров…';
+    position:absolute;inset:0;
+    display:flex;align-items:center;justify-content:center;
+    color:var(--muted);font-size:12.5px;font-weight:600;
+    background:rgba(11,16,32,.7);
+    z-index:5;
+  }
+
+  .tl-strip{
+    position:absolute;
+    inset:0;
+    background-color:#111;
+    background-repeat:no-repeat;
+    background-size:100% 100%;
+    opacity:.85;
+    pointer-events:none;
+  }
+
+  .tl-dim{
+    position:absolute;
+    top:0;bottom:0;
+    background:rgba(11,16,32,.65);
+    pointer-events:none;
+    z-index:2;
+  }
+  .tl-dim.left{left:0;width:0}
+  .tl-dim.right{right:0;width:0}
+
+  .tl-range{
+    position:absolute;
+    top:0;bottom:0;
+    border-top:2px solid var(--accent);
+    border-bottom:2px solid var(--accent);
+    background:transparent;
+    pointer-events:none;
+    box-shadow:0 0 20px rgba(91,140,255,.35);
+    z-index:1;
+  }
+
+  .tl-playhead{
+    position:absolute;
+    top:0;bottom:0;
+    width:2px;
+    background:#fff;
+    box-shadow:0 0 8px rgba(255,255,255,.85), 0 0 2px rgba(255,255,255,1);
+    pointer-events:none;
+    transform:translateX(-1px);
+    z-index:4;
+  }
+  .tl-playhead::before{
+    content:'';
+    position:absolute;
+    top:-1px;left:50%;
+    width:9px;height:9px;
+    background:#fff;
+    border-radius:50%;
+    transform:translateX(-50%);
+    box-shadow:0 0 6px rgba(255,255,255,.9);
+  }
+
+  .tl-handle{
+    position:absolute;
+    top:0;bottom:0;
+    width:16px;
+    background:linear-gradient(180deg,var(--accent),var(--accent2));
+    cursor:ew-resize;
+    transform:translateX(-50%);
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 12px rgba(91,140,255,.6);
+    z-index:3;
+    transition:filter .15s, box-shadow .15s;
+    touch-action:none;
+  }
+  .tl-handle:hover,
+  .tl-handle.dragging{
+    filter:brightness(1.25);
+    box-shadow:0 0 18px rgba(91,140,255,.9);
+  }
+  .tl-handle-grip{
+    width:3px;
+    height:26px;
+    background:rgba(255,255,255,.8);
+    border-radius:2px;
+    box-shadow:0 0 0 1px rgba(0,0,0,.2);
+  }
+  .tl-handle-left{border-radius:8px 0 0 8px}
+  .tl-handle-right{border-radius:0 8px 8px 0}
+
+  .trim-row{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    align-items:flex-end;
+    margin-top:12px;
+  }
+  .trim-field{flex:0 0 120px}
+  .trim-field label{
+    display:block;
+    font-size:10.5px;
+    color:var(--muted);
+    margin-bottom:6px;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    font-weight:700;
+  }
+  .trim-btn{
+    padding:10px 14px;
+    font-size:12.5px;
+    white-space:nowrap;
+    flex:0 0 auto;
+  }
+  .trim-btn.playing{
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    border-color:transparent;
+    color:#fff;
+  }
+
+  /* ============ СВЕТЛАЯ ТЕМА ============ */
+  body.light{
+    --bg:#eef2fa; --bg2:#dfe6f5;
+    --card:rgba(255,255,255,.75);
+    --border:rgba(20,30,60,.14);
+    --text:#1a2238; --muted:#5f6b8a;
+    --accent:#3a6dff; --accent2:#8a3bff;
+    --ok:#15803d; --err:#c2410c;
+  }
+  body.light select,
+  body.light input[type=number],
+  body.light input[type=text],
+  body.light input[type=url],
+  body.light input[type=color]{
+    background:#fff; color:#1a2238; border-color:rgba(0,0,0,.14);
+  }
+  body.light .drop{background:rgba(0,0,0,.02)}
+  body.light .timeline{background:#dfe6f5}
+  body.light .thumb{background:
+    linear-gradient(45deg,#c8d0e5 25%,transparent 25%,transparent 75%,#c8d0e5 75%),
+    linear-gradient(45deg,#c8d0e5 25%,#eef2fa 25%,#eef2fa 75%,#c8d0e5 75%)}
+  body.light .preview-area{background:
+    linear-gradient(45deg,#c8d0e5 25%,transparent 25%,transparent 75%,#c8d0e5 75%),
+    linear-gradient(45deg,#c8d0e5 25%,#eef2fa 25%,#eef2fa 75%,#c8d0e5 75%)}
+  body.light .chip{background:rgba(0,0,0,.05)}
+  body.light .fmt{background:rgba(0,0,0,.04); color:var(--text)}
+  body.light .mode-row{background:rgba(0,0,0,.04)}
+  body.light .handle-preview{background:#000}
+
+  .theme-toggle{
+    position:absolute; top:24px; right:24px;
+    width:44px; height:44px; border-radius:12px;
+    background:var(--card); border:1px solid var(--border);
+    color:var(--text); font-size:20px; cursor:pointer;
+    transition:.2s; z-index:10;
+  }
+  .theme-toggle:hover{transform:scale(1.08); border-color:var(--accent)}
+
+  /* ============ ПАКЕТНЫЙ РЕЖИМ / СЛАЙД-ШОУ ============ */
+  .mode-row{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:14px; flex-wrap:wrap;
+    padding:12px 16px; margin-bottom:14px;
+    background:rgba(255,255,255,.03);
+    border:1px solid var(--border); border-radius:12px;
+  }
+  .mode-toggle{
+    display:inline-flex; align-items:center; gap:10px;
+    font-size:13.5px; cursor:pointer; user-select:none;
+  }
+  .mode-toggle input{width:18px; height:18px; accent-color:var(--accent); cursor:pointer}
+  .mode-slideshow{padding:9px 16px !important; font-size:12.5px !important}
+
+  .batch-list{
+    display:none; margin-top:14px; padding:14px;
+    background:rgba(255,255,255,.04);
+    border:1px solid var(--border); border-radius:12px;
+  }
+  .batch-list.show{display:block}
+  .batch-list .title{
+    font-size:12px; color:var(--muted); margin-bottom:10px;
+    text-transform:uppercase; letter-spacing:.09em; font-weight:700;
+  }
+  .batch-items{display:flex; flex-direction:column; gap:6px; max-height:200px; overflow:auto}
+  .batch-item{
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:12.5px; padding:6px 10px; border-radius:8px;
+    background:rgba(0,0,0,.18);
+  }
+  .batch-item small{color:var(--muted)}
+
+  /* ============ ВОДЯНОЙ ЗНАК ============ */
+  .overlay-panel{margin-top:10px}
+  .overlay-panel input[type=text]{width:100%}
+  .overlay-panel input[type=file]{
+    display:block; width:100%; padding:8px;
+    background:rgba(0,0,0,.18); border:1px dashed var(--border);
+    border-radius:10px; color:var(--text); cursor:pointer; font-size:12.5px;
+  }
+  .overlay-panel input[type=file]::file-selector-button{
+    background:var(--accent); color:#fff; border:none;
+    padding:6px 12px; border-radius:8px; cursor:pointer;
+    font-weight:700; font-size:12px; margin-right:10px;
+  }
+
+  /* ============ ПРЕВЬЮ РУЧКИ ============ */
+  .handle-preview{
+    position:fixed; display:none;
+    border:2px solid var(--accent); border-radius:10px;
+    background:#000; box-shadow:0 12px 32px rgba(0,0,0,.7);
+    z-index:9999; pointer-events:none; overflow:hidden;
+    padding-bottom:18px;
+  }
+  .handle-preview canvas{display:block}
+  .handle-preview-time{
+    position:absolute; bottom:0; left:0; right:0;
+    text-align:center; font-size:11px; font-weight:700;
+    background:rgba(0,0,0,.85); color:#fff; padding:2px 0;
+    font-variant-numeric:tabular-nums;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <button class="theme-toggle" id="themeToggle" title="Переключить тему">🌙</button>
+  <h1>🔄 Универсальный медиа-конвертер</h1>
+  <p>Изображения и видео · ICO · PNG · JPG · WEBP · AVIF · BMP · WEBM · MP4 · GIF</p>
+</header>
+
+<main class="app">
+
+  <div class="url-panel">
+    <input type="url" id="urlInput"
+           placeholder="Вставьте ссылку: https://site.com/video.mp4">
+    <button class="action btn-primary" id="urlLoadBtn">🔗 Загрузить</button>
+  </div>
+  <div class="url-note" id="urlNote">
+    Прямые ссылки на файлы (MP4 · WEBM · MOV · JPG · PNG · GIF · WEBP).
+    YouTube, VK, Instagram и подобные платформы не поддерживаются.
+  </div>
+
+  <div class="mode-row">
+    <label class="mode-toggle">
+      <input type="checkbox" id="batchMode">
+      <span>📦 Пакетный режим (несколько файлов → ZIP)</span>
+    </label>
+    <button class="action btn-ghost mode-slideshow" id="slideshowBtn">📽 Слайд-шоу из фото</button>
+  </div>
+
+  <div class="drop" id="drop">
+    <span class="icon">📁</span>
+    <b>Перетащите изображение, видео или ссылку</b>
+    <small>JPG, PNG, WEBP, GIF, BMP, SVG · MP4, WEBM, MOV, MKV, AVI · вставка <kbd>Ctrl</kbd>+<kbd>V</kbd></small>
+    <input type="file" id="file" accept="image/*,video/*">
+  </div>
+
+  <div class="preview" id="preview">
+    <div class="thumb" id="thumbWrap"></div>
+    <div class="meta" id="metaInfo"></div>
+  </div>
+
+  <div class="formats-wrap" id="formatsWrap">
+    <div class="formats-title">Формат вывода</div>
+    <div class="formats" id="formats"></div>
+  </div>
+
+  <div class="controls" id="controls">
+
+    <div class="group" id="groupSizes">
+      <label class="title">Размеры иконки (px)</label>
+      <div class="sizes" id="sizeBox"></div>
+    </div>
+
+    <div class="group" id="groupFit">
+      <label class="title">Режим масштабирования</label>
+      <select id="fitMode">
+        <option value="contain">Вписать (прозрачные поля)</option>
+        <option value="cover">Заполнить (обрезать края)</option>
+        <option value="stretch">Растянуть (искажение)</option>
+      </select>
+    </div>
+
+    <div class="group" id="groupScale">
+      <label class="title">Масштаб вывода</label>
+      <select id="scaleSelect">
+        <option value="0.25">25%</option>
+        <option value="0.5">50%</option>
+        <option value="0.75">75%</option>
+        <option value="1" selected>100% (оригинал)</option>
+        <option value="1.5">150%</option>
+        <option value="2">200%</option>
+        <option value="3">300%</option>
+      </select>
+    </div>
+
+    <div class="group" id="groupQuality">
+      <label class="title">Качество (JPG/WEBP/AVIF)</label>
+      <div class="slider-wrap">
+        <input type="range" id="qualityRange" min="10" max="100" value="95" step="1">
+        <span class="slider-val" id="qualityVal">95</span>
+      </div>
+    </div>
+
+    <div class="group" id="groupVideoQuality">
+      <label class="title">Качество видео</label>
+      <div class="chips" id="vqChips">
+        <button type="button" class="chip" data-preset="fast">Быстро</button>
+        <button type="button" class="chip" data-preset="balanced">Сбалансировано</button>
+        <button type="button" class="chip active" data-preset="high">Высокое</button>
+        <button type="button" class="chip" data-preset="max">Максимум</button>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div class="group" style="margin-bottom:0">
+          <label class="title" style="font-size:10.5px;margin-bottom:6px">Битрейт (Мбит/с · 0 = авто)</label>
+          <input type="number" id="videoCustomBitrate" min="0" max="200" value="0" step="0.5">
+        </div>
+        <div class="group" style="margin-bottom:0">
+          <label class="title" style="font-size:10.5px;margin-bottom:6px">Кодек</label>
+          <select id="videoCodec">
+            <option value="auto" selected>Авто (VP9 приоритет)</option>
+            <option value="vp9">VP9 (лучшее качество)</option>
+            <option value="vp8">VP8 (совместимость)</option>
+            <option value="av1">AV1 (если доступен)</option>
+          </select>
+        </div>
+      </div>
+      <div class="estimate" id="videoEstimate">≈ —</div>
+    </div>
+
+    <div class="row" id="groupVideoOpts">
+      <div class="group">
+        <label class="title">Длительность (сек)</label>
+        <input type="number" id="vidDuration" min="1" max="60" value="5" step="1">
+      </div>
+      <div class="group">
+        <label class="title">Кадров в секунду</label>
+        <select id="vidFps">
+          <option value="15">15</option>
+          <option value="24">24</option>
+          <option value="25">25</option>
+          <option value="30">30</option>
+          <option value="48">48</option>
+          <option value="50">50</option>
+          <option value="60" selected>60</option>
+          <option value="90">90</option>
+          <option value="120">120</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="group" id="groupTrim" style="display:none">
+      <label class="title">Обрезка видео</label>
+      <div class="trim-wrap">
+
+        <div class="trim-info">
+          <span class="pill">Начало: <b id="tlStartBadge">0.00 с</b></span>
+          <span class="pill">Конец: <b id="tlEndBadge">0.00 с</b></span>
+          <span class="pill accent">Выделено: <b id="tlDurBadge">0.00 с</b></span>
+        </div>
+
+        <div class="timeline" id="timeline">
+          <div class="tl-strip" id="tlStrip"></div>
+          <div class="tl-dim left" id="tlDimLeft"></div>
+          <div class="tl-dim right" id="tlDimRight"></div>
+          <div class="tl-range" id="tlRange"></div>
+          <div class="tl-playhead" id="tlPlayhead"></div>
+          <div class="tl-handle tl-handle-left" id="tlHandleLeft">
+            <div class="tl-handle-grip"></div>
+          </div>
+          <div class="tl-handle tl-handle-right" id="tlHandleRight">
+            <div class="tl-handle-grip"></div>
+          </div>
+        </div>
+
+        <div class="trim-row">
+          <div class="trim-field">
+            <label>Начало (сек)</label>
+            <input type="number" id="trimStart" min="0" value="0" step="0.1">
+          </div>
+          <div class="trim-field">
+            <label>Конец (сек)</label>
+            <input type="number" id="trimEnd" min="0" value="0" step="0.1">
+          </div>
+          <button class="action btn-ghost trim-btn" id="useCurrentBtn"
+                  title="Сделать текущий момент видео началом">⏱ Начало здесь</button>
+          <button class="action btn-ghost trim-btn" id="useCurrentEndBtn"
+                  title="Сделать текущий момент видео концом">⏱ Конец здесь</button>
+          <button class="action btn-ghost trim-btn" id="playRangeBtn"
+                  title="Проиграть выделенный фрагмент">▶▶ Проверить</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row" id="groupGifOpts">
+      <div class="group">
+        <label class="title">GIF · FPS</label>
+        <select id="gifFps">
+          <option value="5">5</option>
+          <option value="8">8</option>
+          <option value="10" selected>10</option>
+          <option value="12">12</option>
+          <option value="15">15</option>
+          <option value="20">20</option>
+        </select>
+      </div>
+      <div class="group">
+        <label class="title">GIF · Разрешение</label>
+        <select id="gifRes">
+          <option value="0">Оригинал</option>
+          <option value="640">640 px</option>
+          <option value="480" selected>480 px</option>
+          <option value="320">320 px</option>
+          <option value="240">240 px</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="group" id="groupBg">
+      <label class="title">Фон</label>
+      <div class="row">
+        <div class="group" style="margin-bottom:0">
+          <select id="bgMode">
+            <option value="transparent">Прозрачный (если поддерживается)</option>
+            <option value="white">Белый</option>
+            <option value="black">Чёрный</option>
+            <option value="custom">Свой цвет…</option>
+          </select>
+        </div>
+        <div class="group" id="customColorGroup" style="display:none;margin-bottom:0">
+          <input type="color" id="bgColor" value="#5b8cff">
+        </div>
+      </div>
+      <div class="hint" id="bgHint"></div>
+    </div>
+
+    <div class="group" id="groupOverlay">
+      <label class="title">Наложение (водяной знак)</label>
+      <div class="chips" id="overlayTypeChips" style="margin-bottom:12px">
+        <button type="button" class="chip active" data-otype="none">Нет</button>
+        <button type="button" class="chip" data-otype="text">Текст</button>
+        <button type="button" class="chip" data-otype="image">Картинка</button>
+      </div>
+
+      <div class="overlay-panel" id="overlayTextPanel" style="display:none">
+        <input type="text" id="overlayText" placeholder="Ваш текст" value="© my site">
+        <div class="row" style="margin-top:10px">
+          <div class="group" style="margin-bottom:0">
+            <label class="title" style="font-size:10.5px">Позиция</label>
+            <select id="overlayPos">
+              <option value="tl">Сверху слева</option>
+              <option value="tc">Сверху центр</option>
+              <option value="tr">Сверху справа</option>
+              <option value="ml">Слева центр</option>
+              <option value="mc">Центр</option>
+              <option value="mr" selected>Справа центр</option>
+              <option value="bl">Снизу слева</option>
+              <option value="bc">Снизу центр</option>
+              <option value="br">Снизу справа</option>
+            </select>
+          </div>
+          <div class="group" style="margin-bottom:0">
+            <label class="title" style="font-size:10.5px">Размер (% высоты)</label>
+            <input type="number" id="overlaySize" min="1" max="30" value="6" step="1">
+          </div>
+        </div>
+        <div class="row" style="margin-top:10px">
+          <div class="group" style="margin-bottom:0">
+            <label class="title" style="font-size:10.5px">Цвет</label>
+            <input type="color" id="overlayColor" value="#ffffff">
+          </div>
+          <div class="group" style="margin-bottom:0">
+            <label class="title" style="font-size:10.5px">Прозрачность %</label>
+            <input type="number" id="overlayOpacity" min="0" max="100" value="85" step="5">
+          </div>
+        </div>
+      </div>
+
+      <div class="overlay-panel" id="overlayImagePanel" style="display:none">
+        <input type="file" id="overlayImageFile" accept="image/*">
+        <div class="row" style="margin-top:10px">
+          <div class="group" style="margin-bottom:0">
+            <label class="title" style="font-size:10.5px">Позиция</label>
+            <select id="overlayImgPos">
+              <option value="tl">Сверху слева</option>
+              <option value="tc">Сверху центр</option>
+              <option value="tr">Сверху справа</option>
+              <option value="ml">Слева центр</option>
+              <option value="mc">Центр</option>
+              <option value="mr">Справа центр</option>
+              <option value="bl">Снизу слева</option>
+              <option value="bc">Снизу центр</option>
+              <option value="br" selected>Снизу справа</option>
+            </select>
+          </div>
+          <div class="group" style="margin-bottom:0">
+            <label class="title" style="font-size:10.5px">Ширина (% ширины)</label>
+            <input type="number" id="overlayImgSize" min="3" max="80" value="15" step="1">
+          </div>
+          <div class="group" style="margin-bottom:0">
+            <label class="title" style="font-size:10.5px">Прозрачность %</label>
+            <input type="number" id="overlayImgOpacity" min="0" max="100" value="80" step="5">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="action btn-primary" id="convertBtn" disabled>⚡ Конвертировать</button>
+      <button class="action btn-ghost" id="resetBtn">✕ Сбросить</button>
+    </div>
+
+    <div class="status" id="status"></div>
+    <div class="progress" id="progress"><div class="bar" id="progressBar"></div></div>
+    <div class="frame-counter" id="frameCounter" style="display:none"></div>
+  </div>
+
+  <div class="result" id="result">
+    <div class="head">
+      ✅ Готово!
+      <span class="badge" id="resultFormat">ICO</span>
+      <span class="badge" id="resultSize">—</span>
+      <span class="badge" id="resultExtra" style="display:none"></span>
+    </div>
+    <div class="preview-area" id="previewArea"></div>
+    <div class="actions">
+      <button class="action btn-primary" id="downloadBtn">⬇️ Скачать</button>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Всё обрабатывается локально · Видео → видео сохраняет все кадры источника и звук
+</footer>
+
+<div class="handle-preview" id="handlePreview">
+  <canvas id="handlePreviewCanvas" width="140" height="90"></canvas>
+  <div class="handle-preview-time" id="handlePreviewTime">0.00 с</div>
+</div>
+
+<script>
+/* =========================================================
+   ⚙️  ПРОКСИ
+   ========================================================= */
+const PROXY_URL = 'http://localhost:3001/proxy?url=';
+
+const PUBLIC_PROXIES = [
+  { name: 'напрямую',     build: u => u },
+  { name: 'corsproxy.io', build: u => 'https://corsproxy.io/?url=' + encodeURIComponent(u) },
+  { name: 'allorigins',   build: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u) },
+  { name: 'codetabs',     build: u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u) }
+];
+
+function getProxyChain() {
+  if (PROXY_URL) {
+    return [{ name: 'свой бэкенд', build: u => PROXY_URL + encodeURIComponent(u) }];
+  }
+  return PUBLIC_PROXIES;
+}
+
+/* =========================================================
+   CONFIG
+   ========================================================= */
+const ALL_ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
+const DEFAULT_ICO   = [16, 32, 48, 256];
+
+const FORMATS_IMAGE = ['ico','png','jpg','webp','avif','bmp','webm','mp4','gif'];
+const FORMATS_VIDEO = ['webm','mp4','gif','png','jpg','webp','ico'];
+
+const FORMAT_LABELS = {
+  ico:'ICO', png:'PNG', jpg:'JPG', webp:'WEBP', avif:'AVIF',
+  bmp:'BMP', webm:'WEBM', mp4:'MP4', gif:'GIF'
+};
+
+const BPP_PRESETS = {
+  fast:     0.030,
+  balanced: 0.070,
+  high:     0.150,
+  max:      0.300
+};
+
+const EXT_MIME = {
+  jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', webp:'image/webp',
+  avif:'image/avif', gif:'image/gif', bmp:'image/bmp', svg:'image/svg+xml',
+  ico:'image/x-icon',
+  mp4:'video/mp4', m4v:'video/mp4', webm:'video/webm', mov:'video/quicktime',
+  mkv:'video/x-matroska', avi:'video/x-msvideo', ogv:'video/ogg'
+};
+
+/* =========================================================
+   DOM
+   ========================================================= */
+const $ = id => document.getElementById(id);
+
+const urlInput     = $('urlInput');
+const urlLoadBtn   = $('urlLoadBtn');
+const urlNoteEl    = $('urlNote');
+
+const dropEl      = $('drop');
+const fileInput   = $('file');
+const previewEl   = $('preview');
+const thumbWrap   = $('thumbWrap');
+const metaInfo    = $('metaInfo');
+const formatsWrap = $('formatsWrap');
+const formatsEl   = $('formats');
+const controlsEl  = $('controls');
+
+const groupSizes    = $('groupSizes');
+const groupFit      = $('groupFit');
+const groupScale    = $('groupScale');
+const groupQuality  = $('groupQuality');
+const groupVideoQuality = $('groupVideoQuality');
+const groupVideoOpts= $('groupVideoOpts');
+const groupTrim     = $('groupTrim');
+const groupGifOpts  = $('groupGifOpts');
+const groupBg       = $('groupBg');
+
+const sizeBox       = $('sizeBox');
+const fitModeEl     = $('fitMode');
+const scaleSelect   = $('scaleSelect');
+const qualityRange  = $('qualityRange');
+const qualityVal    = $('qualityVal');
+
+const vqChips       = $('vqChips');
+const videoCustomBitrate = $('videoCustomBitrate');
+const videoCodec    = $('videoCodec');
+const videoEstimate = $('videoEstimate');
+
+const vidDuration   = $('vidDuration');
+const vidFps        = $('vidFps');
+const gifFps        = $('gifFps');
+const gifRes        = $('gifRes');
+const bgModeEl      = $('bgMode');
+const bgColorEl     = $('bgColor');
+const customColorGroup = $('customColorGroup');
+const bgHint        = $('bgHint');
+
+// Trim UI elements
+const timelineEl    = $('timeline');
+const tlStrip       = $('tlStrip');
+const tlRange       = $('tlRange');
+const tlPlayhead    = $('tlPlayhead');
+const tlHandleLeft  = $('tlHandleLeft');
+const tlHandleRight = $('tlHandleRight');
+const tlDimLeft     = $('tlDimLeft');
+const tlDimRight    = $('tlDimRight');
+const tlStartBadge  = $('tlStartBadge');
+const tlEndBadge    = $('tlEndBadge');
+const tlDurBadge    = $('tlDurBadge');
+const trimStart     = $('trimStart');
+const trimEnd       = $('trimEnd');
+const useCurrentBtn = $('useCurrentBtn');
+const useCurrentEndBtn = $('useCurrentEndBtn');
+const playRangeBtn  = $('playRangeBtn');
+
+const convertBtn    = $('convertBtn');
+const resetBtn      = $('resetBtn');
+const statusEl      = $('status');
+const progressEl    = $('progress');
+const progressBar   = $('progressBar');
+const frameCounter  = $('frameCounter');
+
+const resultEl      = $('result');
+const resultFormat  = $('resultFormat');
+const resultSize    = $('resultSize');
+const resultExtra   = $('resultExtra');
+const previewArea   = $('previewArea');
+const downloadBtn   = $('downloadBtn');
+
+// === Новые элементы (1–5, 8, 11) ===
+const themeToggle       = $('themeToggle');
+const batchModeEl       = $('batchMode');
+const slideshowBtn      = $('slideshowBtn');
+const overlayTypeChips  = $('overlayTypeChips');
+const overlayTextPanel  = $('overlayTextPanel');
+const overlayImagePanel = $('overlayImagePanel');
+const overlayText       = $('overlayText');
+const overlayPos        = $('overlayPos');
+const overlaySize       = $('overlaySize');
+const overlayColor      = $('overlayColor');
+const overlayOpacity    = $('overlayOpacity');
+const overlayImgPos     = $('overlayImgPos');
+const overlayImgSize    = $('overlayImgSize');
+const overlayImgOpacity = $('overlayImgOpacity');
+const overlayImageFile  = $('overlayImageFile');
+const handlePreview     = $('handlePreview');
+const handlePreviewCanvas = $('handlePreviewCanvas');
+const handlePreviewTime = $('handlePreviewTime');
+
+/* =========================================================
+   STATE
+   ========================================================= */
+let sourceFile   = null;
+let sourceImage  = null;
+let sourceVideo  = null;
+let sourceType   = null;
+let currentFormat= null;
+let outputBlob   = null;
+let outputName   = 'output';
+let sourceURL    = null;
+let currentVPreset = 'high';
+let cancelRequested = false;
+
+// Timeline state
+let tlBuilt = false;
+let tlDragging = null;
+let tlStopAt = null;
+let tlPlayheadRAF = null;
+
+// Новое состояние
+let batchFiles = [];
+let slideshowImages = [];
+let overlayImage = null;
+let overlayType = 'none';
+let previewSeeking = false;
+let previewTarget = -1;
+
+/* =========================================================
+   SUPPORT DETECTION
+   ========================================================= */
+const support = {
+  'image/png': true, 'image/jpeg': true,
+  'image/webp': false, 'image/avif': false,
+  'video/webm': false, 'video/mp4': false,
+  'video/webm;vp9': false, 'video/webm;vp8': false, 'video/webm;av1': false
+};
+
+async function detectSupport() {
+  const c = document.createElement('canvas');
+  c.width = 4; c.height = 4;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(0, 0, 4, 4);
+
+  for (const mime of ['image/png','image/jpeg','image/webp','image/avif']) {
+    support[mime] = await new Promise(res => {
+      try { c.toBlob(b => res(!!b && b.type === mime), mime, 0.9); }
+      catch { res(false); }
+    });
+  }
+
+  if (typeof MediaRecorder !== 'undefined') {
+    support['video/webm;vp9'] = MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
+    support['video/webm;vp8'] = MediaRecorder.isTypeSupported('video/webm;codecs=vp8');
+    support['video/webm']     = MediaRecorder.isTypeSupported('video/webm')
+                              || support['video/webm;vp9'] || support['video/webm;vp8'];
+    support['video/webm;av1'] = MediaRecorder.isTypeSupported('video/webm;codecs=av01')
+                              || MediaRecorder.isTypeSupported('video/webm;codecs=av1');
+    support['video/mp4']      = MediaRecorder.isTypeSupported('video/mp4;codecs=h264')
+                              || MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')
+                              || MediaRecorder.isTypeSupported('video/mp4');
+  }
+}
+
+function isFormatSupported(fmt) {
+  switch (fmt) {
+    case 'png':  return support['image/png'];
+    case 'jpg':  return support['image/jpeg'];
+    case 'webp': return support['image/webp'];
+    case 'avif': return support['image/avif'];
+    case 'webm': return support['video/webm'];
+    case 'mp4':  return support['video/mp4'];
+    default: return true;
+  }
+}
+
+/* =========================================================
+   ICO CHECKBOXES
+   ========================================================= */
+ALL_ICO_SIZES.forEach(size => {
+  const label = document.createElement('label');
+  label.innerHTML = `<input type="checkbox" value="${size}" ${DEFAULT_ICO.includes(size) ? 'checked' : ''}> ${size}×${size}`;
+  sizeBox.appendChild(label);
+});
+
+/* =========================================================
+   FORMAT BUTTONS
+   ========================================================= */
+function rebuildFormats() {
+  formatsEl.innerHTML = '';
+  const list = sourceType === 'video' ? FORMATS_VIDEO : FORMATS_IMAGE;
+
+  list.forEach(fmt => {
+    const btn = document.createElement('button');
+    btn.className = 'fmt';
+    btn.dataset.format = fmt;
+    btn.textContent = FORMAT_LABELS[fmt];
+    if (!isFormatSupported(fmt)) {
+      btn.disabled = true;
+      btn.title = 'Не поддерживается этим браузером';
+    }
+    formatsEl.appendChild(btn);
+  });
+
+  const first = formatsEl.querySelector('.fmt:not(:disabled)');
+  if (first) {
+    first.classList.add('active');
+    currentFormat = first.dataset.format;
+  } else {
+    currentFormat = null;
+  }
+}
+
+formatsEl.addEventListener('click', e => {
+  const btn = e.target.closest('.fmt');
+  if (!btn || btn.disabled) return;
+  formatsEl.querySelectorAll('.fmt').forEach(b => b.classList.toggle('active', b === btn));
+  currentFormat = btn.dataset.format;
+  resultEl.classList.remove('show');
+  outputBlob = null;
+  applyFormatUI();
+});
+
+/* =========================================================
+   ЗАГРУЗКА ФАЙЛА
+   ========================================================= */
+dropEl.addEventListener('click', e => {
+  if (e.target.tagName !== 'INPUT') fileInput.click();
+});
+
+fileInput.addEventListener('change', e => {
+  const files = [...e.target.files];
+  if (!files.length) return;
+  if (batchModeEl.checked) {
+    batchFiles = files;
+    showBatchUI();
+    convertBtn.disabled = false;
+    setStatus(`Пакетный режим: ${files.length} файлов. Выберите формат и нажмите «Конвертировать».`, 'ok');
+  } else {
+    loadFile(files[0]);
+  }
+});
+
+['dragenter','dragover'].forEach(ev =>
+  dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.add('over'); }));
+['dragleave','drop'].forEach(ev =>
+  dropEl.addEventListener(ev, e => { e.preventDefault(); dropEl.classList.remove('over'); }));
+
+dropEl.addEventListener('drop', e => {
+  const dt = e.dataTransfer;
+  const files = [...(dt.files || [])];
+  if (files.length) {
+    if (batchModeEl.checked && files.length > 1) {
+      batchFiles = files;
+      showBatchUI();
+      convertBtn.disabled = false;
+      setStatus(`Пакетный режим: ${files.length} файлов.`, 'ok');
+    } else {
+      loadFile(files[0]);
+    }
+    return;
+  }
+  const url = (dt.getData('text/uri-list') || dt.getData('text/plain') || '').trim();
+  if (url && /^https?:\/\//i.test(url)) {
+    urlInput.value = url;
+    loadFromUrl(url);
+  }
+});
+
+document.addEventListener('paste', e => {
+  const cd = e.clipboardData;
+  if (!cd) return;
+
+  for (const it of cd.items || []) {
+    if (it.kind === 'file' && (it.type.startsWith('image/') || it.type.startsWith('video/'))) {
+      const f = it.getAsFile();
+      if (f) { loadFile(f); return; }
+    }
+  }
+
+  const text = (cd.getData('text/plain') || '').trim();
+  if (text && /^https?:\/\/\S+$/i.test(text)) {
+    urlInput.value = text;
+    loadFromUrl(text);
+  }
+});
+
+function resetSource() {
+  sourceImage = null;
+  sourceVideo = null;
+  sourceType  = null;
+  thumbWrap.innerHTML = '';
+  if (sourceURL) { URL.revokeObjectURL(sourceURL); sourceURL = null; }
+  tlBuilt = false;
+  tlDragging = null;
+  tlStopAt = null;
+  if (tlPlayheadRAF) { cancelAnimationFrame(tlPlayheadRAF); tlPlayheadRAF = null; }
+  tlStrip.style.backgroundImage = '';
+  timelineEl.classList.remove('loading');
+}
+
+function loadFile(file) {
+  resetSource();
+  slideshowImages = [];
+  cancelRequested = false;
+
+  if (file.type.startsWith('video/')) {
+    sourceType = 'video';
+    sourceFile = file;
+    loadVideoFile(file);
+  } else if (file.type.startsWith('image/')) {
+    sourceType = 'image';
+    sourceFile = file;
+    loadImageFile(file);
+  } else {
+    setStatus('Неподдерживаемый тип файла: ' + (file.type || '—'), 'err');
+  }
+}
+
+function loadImageFile(file) {
+  setStatus('Загрузка изображения…');
+  const url = URL.createObjectURL(file);
+  sourceURL = url;
+  const img = new Image();
+
+  img.onload = () => {
+    sourceImage = img;
+    thumbWrap.innerHTML = '';
+    const el = document.createElement('img');
+    el.src = url;
+    thumbWrap.appendChild(el);
+
+    previewEl.classList.add('show');
+    previewEl.classList.remove('video-mode');
+    formatsWrap.classList.add('show');
+    controlsEl.classList.add('show');
+    convertBtn.disabled = false;
+
+    metaInfo.innerHTML = `
+      <b>${escapeHtml(file.name)}</b><br>
+      Размер: <b>${img.naturalWidth} × ${img.naturalHeight} px</b><br>
+      Вес: <b>${formatBytes(file.size)}</b> · Тип: <b>${escapeHtml(file.type || '—')}</b>
+    `;
+
+    rebuildFormats();
+    applyFormatUI();
+    updateEstimate();
+    setStatus('Изображение загружено. Выберите формат и настройте параметры.', 'ok');
+  };
+
+  img.onerror = () => setStatus('Не удалось прочитать изображение.', 'err');
+  img.src = url;
+}
+
+function loadVideoFile(file) {
+  setStatus('Загрузка видео…');
+  const url = URL.createObjectURL(file);
+  sourceURL = url;
+  const video = document.createElement('video');
+  video.src = url;
+  video.controls = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.muted = false;
+  video.crossOrigin = 'anonymous';
+
+  video.onloadedmetadata = async () => {
+    sourceVideo = video;
+
+    thumbWrap.innerHTML = '';
+    thumbWrap.appendChild(video);
+    previewEl.classList.add('show', 'video-mode');
+    formatsWrap.classList.add('show');
+    controlsEl.classList.add('show');
+    convertBtn.disabled = false;
+
+    const dur = isFinite(video.duration) ? video.duration : 0;
+    trimStart.value = 0;
+    trimEnd.value = dur ? dur.toFixed(2) : 0;
+    trimEnd.max = dur ? dur.toFixed(2) : 60;
+
+    metaInfo.innerHTML = `
+      <b>${escapeHtml(file.name)}</b><br>
+      Разрешение: <b>${video.videoWidth} × ${video.videoHeight} px</b><br>
+      Длительность: <b>${dur ? dur.toFixed(2) + ' сек' : '—'}</b><br>
+      Вес: <b>${formatBytes(file.size)}</b> · Тип: <b>${escapeHtml(file.type || '—')}</b>
+    `;
+
+    video.addEventListener('timeupdate', () => {
+      if (tlStopAt != null && video.currentTime >= tlStopAt - 0.05) {
+        video.pause();
+        tlStopAt = null;
+        playRangeBtn.classList.remove('playing');
+        playRangeBtn.textContent = '▶▶ Проверить';
+      }
+    });
+
+    rebuildFormats();
+    applyFormatUI();
+    updateEstimate();
+
+    updateTimelineUI();
+    startPlayheadLoop();
+
+    setStatus('Видео загружено. Можно обрезать мышкой на таймлайне.', 'ok');
+
+    try { await buildTimeline(); } catch (e) {
+      console.warn('Не удалось построить миниатюры таймлайна:', e);
+    }
+  };
+
+  video.onerror = () => setStatus('Не удалось прочитать видео. Формат может не поддерживаться браузером.', 'err');
+}
+
+/* =========================================================
+   ЗАГРУЗКА ПО ССЫЛКЕ
+   ========================================================= */
+function setUrlNote(text, cls = '') {
+  urlNoteEl.textContent = text;
+  urlNoteEl.className = 'url-note' + (cls ? ' ' + cls : '');
+}
+
+function guessNameAndType(rawUrl, blobType) {
+  let path = rawUrl;
+  try { path = new URL(rawUrl).pathname; } catch {}
+  let name = decodeURIComponent((path.split('/').filter(Boolean).pop() || 'media'));
+  name = name.split('?')[0].split('#')[0];
+
+  let ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
+  const generic = !blobType || /octet-stream|binary/i.test(blobType);
+
+  if (!ext || !EXT_MIME[ext]) {
+    const found = Object.keys(EXT_MIME).find(k => EXT_MIME[k] === blobType);
+    if (found) { ext = found; if (!name.includes('.')) name += '.' + ext; }
+  }
+  const type = generic ? (EXT_MIME[ext] || blobType || '') : blobType;
+  return { name, type };
+}
+
+async function fetchBlob(url, onProgress) {
+  const res = await fetch(url, { mode: 'cors', redirect: 'follow' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+
+  const total = parseInt(res.headers.get('content-length') || '0', 10);
+  const ctype = res.headers.get('content-type') || '';
+
+  if (!res.body || !total) {
+    const b = await res.blob();
+    return new Blob([b], { type: ctype || b.type });
+  }
+
+  const reader = res.body.getReader();
+  const chunks = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    received += value.length;
+    if (onProgress) onProgress(Math.min(1, received / total));
+  }
+  return new Blob(chunks, { type: ctype });
+}
+
+async function loadFromUrl(rawUrl) {
+  let url = String(rawUrl || '').trim().replace(/^["'<]|["'>]$/g, '');
+  if (!url) return;
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+
+  try { new URL(url); } catch { setUrlNote('Некорректная ссылка', 'err'); return; }
+
+  cancelRequested = false;
+  resultEl.classList.remove('show');
+  outputBlob = null;
+  convertBtn.disabled = true;
+  setUrlNote('Скачивание…', 'busy');
+  setStatus('Скачивание по ссылке…');
+  showProgress(0);
+
+  const chain = getProxyChain();
+  let lastErr = null;
+
+  for (let i = 0; i < chain.length; i++) {
+    const proxy = chain[i];
+    try {
+      const blob = await fetchBlob(proxy.build(url), p => {
+        showProgress(p * 100);
+        setUrlNote(`Скачивание… ${Math.round(p * 100)}% (${proxy.name})`, 'busy');
+      });
+
+      if (!blob.size) throw new Error('пустой ответ');
+
+      const { name, type } = guessNameAndType(url, blob.type);
+
+      if (!type.startsWith('image/') && !type.startsWith('video/')) {
+        throw new Error('это не изображение и не видео (' + (type || '?') + ')');
+      }
+
+      const file = new File([blob], name, { type });
+      hideProgress();
+      setUrlNote(`✅ Загружено: ${name} · ${formatBytes(blob.size)}` +
+                 (chain.length > 1 && i > 0 ? ` (через ${proxy.name})` : ''), 'ok');
+      loadFile(file);
+      return;
+
+    } catch (e) {
+      lastErr = e;
+      console.warn('Прокси «' + proxy.name + '» не сработал:', e.message);
+    }
+  }
+
+  hideProgress();
+  convertBtn.disabled = true;
+  setUrlNote(
+    '❌ Не удалось скачать: ' + (lastErr?.message || 'сеть/CORS') +
+    '. Проверьте, что бэкенд запущен (npm start в папке backend).',
+    'err'
+  );
+  setStatus('Ошибка загрузки по ссылке.', 'err');
+}
+
+urlLoadBtn.addEventListener('click', () => loadFromUrl(urlInput.value));
+urlInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); loadFromUrl(urlInput.value); }
+});
+
+/* =========================================================
+   FORMAT UI
+   ========================================================= */
+function applyFormatUI() {
+  const f = currentFormat;
+  if (!f) return;
+
+  const isVideo = sourceType === 'video';
+  const isImage = sourceType === 'image';
+  const isVideoOutput = (f === 'webm' || f === 'mp4');
+
+  groupSizes.style.display = (f === 'ico') ? 'block' : 'none';
+  groupFit.style.display = (f === 'ico' || (isImage && (isVideoOutput || f === 'gif'))) ? 'block' : 'none';
+  groupScale.style.display = (isImage && f !== 'ico') || (isVideo && ['png','jpg','webp','ico'].includes(f)) ? 'block' : 'none';
+  groupQuality.style.display = ['jpg','webp','avif'].includes(f) ? 'block' : 'none';
+  groupVideoQuality.style.display = isVideoOutput ? 'block' : 'none';
+  groupVideoOpts.style.display = (isImage && isVideoOutput) ? 'flex' : 'none';
+  groupTrim.style.display = (isVideo && ['webm','mp4','gif'].includes(f)) ? 'block' : 'none';
+  groupGifOpts.style.display = (isVideo && f === 'gif') ? 'flex' : 'none';
+  groupBg.style.display = 'block';
+
+  let hint = '';
+  if (f === 'jpg') hint = 'JPG не поддерживает прозрачность — прозрачные области будут залиты фоном.';
+  else if (f === 'bmp') hint = 'BMP не поддерживает прозрачность — прозрачные области будут залиты фоном.';
+  else if (f === 'gif' && isVideo) hint = 'GIF: чем больше кадров и выше разрешение — тем больше файл.';
+  else if (f === 'gif') hint = 'GIF из статичного изображения будет содержать 1 кадр.';
+  else if (f === 'webm' && isVideo) hint = '🎯 WEBM: сохраняются все кадры источника + звук.';
+  else if (f === 'webm') hint = 'WEBM: VP9 + ручное управление кадрами (до 120 fps).';
+  else if (f === 'mp4' && isVideo) hint = '🎯 MP4: сохраняются все кадры источника + звук.';
+  else if (f === 'ico' && isVideo) hint = 'ICO: будет использован текущий кадр видео.';
+  else if (isVideo && ['png','jpg','webp'].includes(f)) hint = 'Будет взят текущий кадр из плеера.';
+
+  bgHint.textContent = hint;
+
+  if ((f === 'jpg' || f === 'bmp') && bgModeEl.value === 'transparent') {
+    bgModeEl.value = 'white';
+  }
+  updateBgColorVisibility();
+  updateEstimate();
+}
+
+function updateBgColorVisibility() {
+  customColorGroup.style.display = bgModeEl.value === 'custom' ? 'block' : 'none';
+}
+bgModeEl.addEventListener('change', updateBgColorVisibility);
+qualityRange.addEventListener('input', () => qualityVal.textContent = qualityRange.value);
+
+vqChips.addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  vqChips.querySelectorAll('.chip').forEach(c => c.classList.toggle('active', c === chip));
+  currentVPreset = chip.dataset.preset;
+  updateEstimate();
+  saveSettings();
+});
+
+videoCustomBitrate.addEventListener('input', updateEstimate);
+vidFps.addEventListener('change', updateEstimate);
+vidDuration.addEventListener('input', updateEstimate);
+scaleSelect.addEventListener('change', updateEstimate);
+videoCodec.addEventListener('change', updateEstimate);
+
+/* =========================================================
+   TIMELINE — построение миниатюр
+   ========================================================= */
+async function buildTimeline() {
+  const video = sourceVideo;
+  if (!video || !isFinite(video.duration) || video.duration <= 0) return;
+
+  timelineEl.classList.add('loading');
+
+  const wasPaused = video.paused;
+  const prevTime  = video.currentTime;
+  try { video.pause(); } catch {}
+
+  const COUNT   = 16;
+  const THUMB_W = 96;
+  const THUMB_H = 72;
+  const totalW  = COUNT * THUMB_W;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = totalW;
+  canvas.height = THUMB_H;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, totalW, THUMB_H);
+
+  const dur = video.duration;
+
+  for (let i = 0; i < COUNT; i++) {
+    const t = (i / COUNT) * (dur - 0.05) + 0.02;
+    try { await seekVideo(video, Math.min(t, Math.max(0, dur - 0.05))); } catch {}
+    try {
+      const vw = video.videoWidth  || 16;
+      const vh = video.videoHeight || 9;
+      const scale = Math.min(THUMB_W / vw, THUMB_H / vh);
+      const dw = vw * scale, dh = vh * scale;
+      const dx = i * THUMB_W + (THUMB_W - dw) / 2;
+      const dy = (THUMB_H - dh) / 2;
+
+      ctx.fillStyle = '#000';
+      ctx.fillRect(i * THUMB_W, 0, THUMB_W, THUMB_H);
+      ctx.drawImage(video, dx, dy, dw, dh);
+
+      ctx.fillStyle = 'rgba(255,255,255,.08)';
+      ctx.fillRect(i * THUMB_W, 0, 1, THUMB_H);
+    } catch (e) {}
+  }
+
+  try { await seekVideo(video, prevTime); } catch {}
+  if (!wasPaused) { try { await video.play(); } catch {} }
+
+  try {
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+    tlStrip.style.backgroundImage = `url(${dataUrl})`;
+    tlStrip.style.backgroundSize  = '100% 100%';
+    tlStrip.style.backgroundRepeat = 'no-repeat';
+  } catch (e) { console.warn('toDataURL failed:', e); }
+
+  timelineEl.classList.remove('loading');
+  tlBuilt = true;
+}
+
+/* =========================================================
+   TIMELINE — обновление позиций
+   ========================================================= */
+function getTrimTimes() {
+  if (!sourceVideo || !isFinite(sourceVideo.duration)) return { s: 0, e: 1, dur: 1 };
+  const dur = sourceVideo.duration;
+  let s = parseFloat(trimStart.value);
+  let e = parseFloat(trimEnd.value);
+  if (!isFinite(s)) s = 0;
+  if (!isFinite(e)) e = dur;
+  s = Math.max(0, Math.min(s, dur));
+  e = Math.max(0, Math.min(e, dur));
+  if (e < s + 0.05) e = Math.min(dur, s + 0.05);
+  return { s, e, dur };
+}
+
+function updateTimelineUI() {
+  if (!sourceVideo || !isFinite(sourceVideo.duration)) return;
+
+  const { s, e, dur } = getTrimTimes();
+  const leftPct  = (s / dur) * 100;
+  const rightPct = (e / dur) * 100;
+
+  tlRange.style.left  = leftPct + '%';
+  tlRange.style.width = (rightPct - leftPct) + '%';
+
+  tlHandleLeft.style.left  = leftPct + '%';
+  tlHandleRight.style.left = rightPct + '%';
+
+  tlDimLeft.style.width  = leftPct + '%';
+  tlDimRight.style.width = (100 - rightPct) + '%';
+
+  tlStartBadge.textContent = s.toFixed(2) + ' с';
+  tlEndBadge.textContent   = e.toFixed(2) + ' с';
+  tlDurBadge.textContent   = (e - s).toFixed(2) + ' с';
+}
+
+/* =========================================================
+   TIMELINE — плейхед
+   ========================================================= */
+function startPlayheadLoop() {
+  if (tlPlayheadRAF) cancelAnimationFrame(tlPlayheadRAF);
+  const loop = () => {
+    if (sourceVideo && isFinite(sourceVideo.duration) && sourceVideo.duration > 0) {
+      const pct = (sourceVideo.currentTime / sourceVideo.duration) * 100;
+      tlPlayhead.style.left = Math.max(0, Math.min(100, pct)) + '%';
+    }
+    tlPlayheadRAF = requestAnimationFrame(loop);
+  };
+  tlPlayheadRAF = requestAnimationFrame(loop);
+}
+
+/* =========================================================
+   TIMELINE — перетаскивание ручек
+   ========================================================= */
+function timelinePointerToTime(clientX) {
+  const rect = timelineEl.getBoundingClientRect();
+  const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+  const p = x / rect.width;
+  const dur = sourceVideo ? sourceVideo.duration : 0;
+  return p * dur;
+}
+
+tlHandleLeft.addEventListener('pointerdown', e => {
+  if (!sourceVideo) return;
+  tlDragging = 'start';
+  tlHandleLeft.classList.add('dragging');
+  tlHandleLeft.setPointerCapture(e.pointerId);
+  positionHandlePreview(e.clientX);
+  handlePreview.style.display = 'block';
+  drawHandlePreview(parseFloat(trimStart.value) || 0);
+  e.preventDefault();
+});
+
+tlHandleRight.addEventListener('pointerdown', e => {
+  if (!sourceVideo) return;
+  tlDragging = 'end';
+  tlHandleRight.classList.add('dragging');
+  tlHandleRight.setPointerCapture(e.pointerId);
+  positionHandlePreview(e.clientX);
+  handlePreview.style.display = 'block';
+  drawHandlePreview(parseFloat(trimEnd.value) || 0);
+  e.preventDefault();
+});
+
+window.addEventListener('pointermove', e => {
+  if (!tlDragging || !sourceVideo) return;
+  const dur = sourceVideo.duration;
+  let t = timelinePointerToTime(e.clientX);
+
+  positionHandlePreview(e.clientX);
+  handlePreview.style.display = 'block';
+
+  const MIN_GAP = 0.15;
+  let s = parseFloat(trimStart.value) || 0;
+  let en = parseFloat(trimEnd.value) || dur;
+
+  if (tlDragging === 'start') {
+    t = Math.max(0, Math.min(t, en - MIN_GAP));
+    trimStart.value = t.toFixed(2);
+  } else {
+    t = Math.max(s + MIN_GAP, Math.min(t, dur));
+    trimEnd.value = t.toFixed(2);
+  }
+
+  updateTimelineUI();
+  updateEstimate();
+
+  const previewTime = tlDragging === 'start'
+    ? parseFloat(trimStart.value)
+    : parseFloat(trimEnd.value);
+  drawHandlePreview(previewTime);
+});
+
+window.addEventListener('pointerup', () => {
+  if (!tlDragging) return;
+  if (tlDragging === 'start') tlHandleLeft.classList.remove('dragging');
+  if (tlDragging === 'end')   tlHandleRight.classList.remove('dragging');
+  tlDragging = null;
+  handlePreview.style.display = 'none';
+});
+
+timelineEl.addEventListener('click', e => {
+  if (!sourceVideo) return;
+  if (e.target.closest('.tl-handle')) return;
+  if (tlDragging) return;
+  const t = timelinePointerToTime(e.clientX);
+  try { sourceVideo.currentTime = Math.max(0, Math.min(sourceVideo.duration, t)); } catch {}
+});
+
+trimStart.addEventListener('input', () => {
+  const dur = sourceVideo ? sourceVideo.duration : 0;
+  let s = parseFloat(trimStart.value) || 0;
+  let e = parseFloat(trimEnd.value)   || dur;
+  const MIN_GAP = 0.15;
+  if (s < 0) s = 0;
+  if (s > e - MIN_GAP) s = Math.max(0, e - MIN_GAP);
+  trimStart.value = s.toFixed(2);
+  updateTimelineUI();
+  updateEstimate();
+});
+
+trimEnd.addEventListener('input', () => {
+  const dur = sourceVideo ? sourceVideo.duration : 0;
+  let s = parseFloat(trimStart.value) || 0;
+  let e = parseFloat(trimEnd.value)   || dur;
+  const MIN_GAP = 0.15;
+  if (e > dur) e = dur;
+  if (e < s + MIN_GAP) e = Math.min(dur, s + MIN_GAP);
+  trimEnd.value = e.toFixed(2);
+  updateTimelineUI();
+  updateEstimate();
+});
+
+useCurrentBtn.addEventListener('click', () => {
+  if (!sourceVideo) return;
+  const t = sourceVideo.currentTime;
+  const dur = sourceVideo.duration;
+  let e = parseFloat(trimEnd.value) || dur;
+  const MIN_GAP = 0.15;
+  if (t > e - MIN_GAP) e = Math.min(dur, t + MIN_GAP);
+  trimStart.value = Math.max(0, t).toFixed(2);
+  trimEnd.value   = e.toFixed(2);
+  updateTimelineUI();
+  updateEstimate();
+});
+
+useCurrentEndBtn.addEventListener('click', () => {
+  if (!sourceVideo) return;
+  const t = sourceVideo.currentTime;
+  let s = parseFloat(trimStart.value) || 0;
+  const MIN_GAP = 0.15;
+  if (t < s + MIN_GAP) s = Math.max(0, t - MIN_GAP);
+  trimStart.value = s.toFixed(2);
+  trimEnd.value   = Math.max(0, t).toFixed(2);
+  updateTimelineUI();
+  updateEstimate();
+});
+
+playRangeBtn.addEventListener('click', async () => {
+  if (!sourceVideo) return;
+  const { s, e } = getTrimTimes();
+
+  if (tlStopAt != null) {
+    tlStopAt = null;
+    try { sourceVideo.pause(); } catch {}
+    playRangeBtn.classList.remove('playing');
+    playRangeBtn.textContent = '▶▶ Проверить';
+    return;
+  }
+
+  try {
+    sourceVideo.currentTime = s;
+    await new Promise(r => setTimeout(r, 80));
+    await sourceVideo.play();
+    tlStopAt = e;
+    playRangeBtn.classList.add('playing');
+    playRangeBtn.textContent = '⏸ Остановить';
+  } catch (err) {
+    setStatus('Не удалось запустить воспроизведение: ' + err.message, 'err');
+  }
+});
+
+setInterval(() => {
+  if (!sourceVideo) return;
+  if (sourceVideo.paused && tlStopAt == null && playRangeBtn.classList.contains('playing')) {
+    playRangeBtn.classList.remove('playing');
+    playRangeBtn.textContent = '▶▶ Проверить';
+  }
+}, 500);
+
+/* =========================================================
+   BITRATE & ESTIMATE
+   ========================================================= */
+function computeBitrate(W, H, fps, preset, customMbps) {
+  if (customMbps > 0) return Math.round(customMbps * 1_000_000);
+  const bpp = BPP_PRESETS[preset] || BPP_PRESETS.high;
+  const bps = W * H * fps * bpp;
+  return Math.max(800_000, Math.min(200_000_000, Math.round(bps)));
+}
+
+function getTargetDimensions() {
+  let W, H;
+  if (sourceImage) { W = sourceImage.naturalWidth; H = sourceImage.naturalHeight; }
+  else if (sourceVideo) { W = sourceVideo.videoWidth; H = sourceVideo.videoHeight; }
+  else return null;
+
+  if (sourceType === 'image') {
+    const scale = parseFloat(scaleSelect.value) || 1;
+    W = Math.round(W * scale);
+    H = Math.round(H * scale);
+  }
+  return { W, H };
+}
+
+function updateEstimate() {
+  if (!sourceType) { videoEstimate.textContent = '≈ —'; return; }
+  const dims = getTargetDimensions();
+  if (!dims) { videoEstimate.textContent = '≈ —'; return; }
+
+  let { W, H } = dims;
+  W = W + (W % 2); H = H + (H % 2);
+
+  const isVideo = sourceType === 'video';
+  let fps, dur;
+
+  if (isVideo) {
+    fps = 60;
+    const { s, e } = getTrimTimes();
+    dur = Math.max(0.1, e - s);
+  } else {
+    fps = parseInt(vidFps.value, 10) || 30;
+    dur = parseInt(vidDuration.value, 10) || 3;
+  }
+
+  const custom = parseFloat(videoCustomBitrate.value) || 0;
+  const bps = computeBitrate(W, H, fps, currentVPreset, custom);
+  const bytes = (bps / 8) * dur;
+  const frames = Math.round(fps * dur);
+
+  videoEstimate.textContent = isVideo
+    ? `≈ ${formatBytes(bytes)} · ${(bps / 1e6).toFixed(1)} Мбит/с · ${W}×${H} · 60 fps`
+    : `≈ ${formatBytes(bytes)} · ${(bps / 1e6).toFixed(1)} Мбит/с · ${W}×${H} @ ${fps} fps · ${frames} кадров`;
+}
+
+/* =========================================================
+   RESET
+   ========================================================= */
+resetBtn.addEventListener('click', () => {
+  resetSource();
+  sourceFile = null;
+  outputBlob = null;
+  fileInput.value = '';
+  previewEl.classList.remove('show', 'video-mode');
+  formatsWrap.classList.remove('show');
+  controlsEl.classList.remove('show');
+  resultEl.classList.remove('show');
+  convertBtn.disabled = true;
+  setUrlNote('Прямые ссылки на файлы (MP4 · WEBM · MOV · JPG · PNG · GIF · WEBP).');
+  setStatus('');
+  hideProgress();
+  hideFrameCounter();
+  playRangeBtn.classList.remove('playing');
+  playRangeBtn.textContent = '▶▶ Проверить';
+
+  batchFiles = [];
+  slideshowImages = [];
+  document.querySelector('.batch-list')?.remove();
+  batchModeEl.checked = false;
+  fileInput.multiple = false;
+});
+
+/* =========================================================
+   UTILS
+   ========================================================= */
+function setStatus(text, type = '') {
+  statusEl.textContent = text;
+  statusEl.className = 'status' + (type ? ' ' + type : '');
+}
+function showProgress(pct) {
+  progressEl.classList.add('show');
+  progressBar.style.width = Math.max(0, Math.min(100, pct)) + '%';
+}
+function hideProgress() {
+  progressEl.classList.remove('show');
+  progressBar.style.width = '0%';
+}
+function showFrameCounter(html) {
+  frameCounter.style.display = 'block';
+  frameCounter.innerHTML = html;
+}
+function hideFrameCounter() { frameCounter.style.display = 'none'; }
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+function formatBytes(n) {
+  if (n < 1024) return n + ' Б';
+  if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' КБ';
+  return (n / 1024 / 1024).toFixed(2) + ' МБ';
+}
+function getBackground() {
+  switch (bgModeEl.value) {
+    case 'transparent': return null;
+    case 'white':       return '#ffffff';
+    case 'black':       return '#000000';
+    case 'custom':      return bgColorEl.value;
+  }
+  return null;
+}
+
+/* =========================================================
+   CANVAS HELPERS
+   ========================================================= */
+function renderFrame(img, w, h, fitMode, bg) {
+  const canvas = document.createElement('canvas');
+  canvas.width  = Math.max(1, Math.round(w));
+  canvas.height = Math.max(1, Math.round(h));
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+
+  const iw = img.naturalWidth || img.videoWidth || img.width;
+  const ih = img.naturalHeight || img.videoHeight || img.height;
+
+  if (fitMode === 'stretch') {
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    applyOverlay(ctx, canvas.width, canvas.height);
+    return canvas;
+  }
+  const scale = fitMode === 'cover'
+    ? Math.max(canvas.width / iw, canvas.height / ih)
+    : Math.min(canvas.width / iw, canvas.height / ih);
+  const dw = iw * scale, dh = ih * scale;
+  const dx = (canvas.width - dw) / 2, dy = (canvas.height - dh) / 2;
+
+  if (fitMode === 'cover') {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, canvas.width, canvas.height);
+    ctx.clip();
+    ctx.drawImage(img, dx, dy, dw, dh);
+    ctx.restore();
+  } else {
+    ctx.drawImage(img, dx, dy, dw, dh);
+  }
+
+  applyOverlay(ctx, canvas.width, canvas.height);
+
+  return canvas;
+}
+
+function canvasToBlob(canvas, mime, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('Не удалось создать ' + mime)),
+                  mime, quality);
+  });
+}
+
+function canvasToPngBytes(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(b => {
+      if (!b) return reject(new Error('PNG encode failed'));
+      b.arrayBuffer().then(buf => resolve(new Uint8Array(buf)));
+    }, 'image/png');
+  });
+}
+
+/* =========================================================
+   ICO ENCODER
+   ========================================================= */
+function buildIco(frames) {
+  const count = frames.length;
+  const headerSize = 6 + 16 * count;
+  let totalData = 0;
+  frames.forEach(f => totalData += f.data.length);
+
+  const buffer = new ArrayBuffer(headerSize + totalData);
+  const bytes  = new Uint8Array(buffer);
+  const view   = new DataView(buffer);
+
+  view.setUint16(0, 0, true);
+  view.setUint16(2, 1, true);
+  view.setUint16(4, count, true);
+
+  let dataOffset = headerSize;
+  frames.forEach((frame, i) => {
+    const o = 6 + i * 16;
+    const s = frame.size;
+    bytes[o]     = s >= 256 ? 0 : s;
+    bytes[o + 1] = s >= 256 ? 0 : s;
+    view.setUint16(o + 4, 1, true);
+    view.setUint16(o + 6, 32, true);
+    view.setUint32(o + 8, frame.data.length, true);
+    view.setUint32(o + 12, dataOffset, true);
+    bytes.set(frame.data, dataOffset);
+    dataOffset += frame.data.length;
+  });
+
+  return new Blob([buffer], { type: 'image/x-icon' });
+}
+
+/* =========================================================
+   BMP ENCODER
+   ========================================================= */
+function canvasToBmp(canvas, bg) {
+  const w = canvas.width, h = canvas.height;
+  let src = canvas;
+  if (bg) {
+    const tmp = document.createElement('canvas');
+    tmp.width = w; tmp.height = h;
+    const tctx = tmp.getContext('2d');
+    tctx.fillStyle = bg;
+    tctx.fillRect(0, 0, w, h);
+    tctx.drawImage(canvas, 0, 0);
+    src = tmp;
+  }
+
+  const data = src.getContext('2d').getImageData(0, 0, w, h).data;
+  const rowSize = Math.floor((24 * w + 31) / 32) * 4;
+  const pixelDataSize = rowSize * h;
+  const fileSize = 54 + pixelDataSize;
+
+  const buffer = new ArrayBuffer(fileSize);
+  const view   = new DataView(buffer);
+  const bytes  = new Uint8Array(buffer);
+
+  bytes[0] = 0x42; bytes[1] = 0x4D;
+  view.setUint32(2, fileSize, true);
+  view.setUint32(10, 54, true);
+  view.setUint32(14, 40, true);
+  view.setInt32(18, w, true);
+  view.setInt32(22, h, true);
+  view.setUint16(26, 1, true);
+  view.setUint16(28, 24, true);
+  view.setUint32(34, pixelDataSize, true);
+  view.setInt32(38, 2835, true);
+  view.setInt32(42, 2835, true);
+
+  for (let y = 0; y < h; y++) {
+    const srcY = h - 1 - y;
+    for (let x = 0; x < w; x++) {
+      const si = (srcY * w + x) * 4;
+      const di = 54 + y * rowSize + x * 3;
+      bytes[di]     = data[si + 2];
+      bytes[di + 1] = data[si + 1];
+      bytes[di + 2] = data[si];
+    }
+  }
+  return new Blob([buffer], { type: 'image/bmp' });
+}
+
+/* =========================================================
+   GIF ENCODER
+   ========================================================= */
+const GIF_PALETTE = (() => {
+  const p = new Uint8Array(256 * 3);
+  let i = 0;
+  for (let r = 0; r < 6; r++)
+    for (let g = 0; g < 6; g++)
+      for (let b = 0; b < 6; b++) {
+        p[i++] = Math.round(r * 255 / 5);
+        p[i++] = Math.round(g * 255 / 5);
+        p[i++] = Math.round(b * 255 / 5);
+      }
+  for (let g = 0; g < 40; g++) {
+    const v = Math.round(g * 255 / 39);
+    p[i++] = v; p[i++] = v; p[i++] = v;
+  }
+  return p;
+})();
+
+function rgbToPaletteIndex(r, g, b) {
+  const ri = Math.round(r * 5 / 255);
+  const gi = Math.round(g * 5 / 255);
+  const bi = Math.round(b * 5 / 255);
+  const webIdx = ri * 36 + gi * 6 + bi;
+
+  const wr = GIF_PALETTE[webIdx * 3];
+  const wg = GIF_PALETTE[webIdx * 3 + 1];
+  const wb = GIF_PALETTE[webIdx * 3 + 2];
+  const wd = (r - wr) ** 2 + (g - wg) ** 2 + (b - wb) ** 2;
+
+  const gray = Math.round((r + g + b) / 3);
+  const grayIdx = 216 + Math.round(gray * 39 / 255);
+  const gv = GIF_PALETTE[grayIdx * 3];
+  const gd = (r - gv) ** 2 + (g - gv) ** 2 + (b - gv) ** 2;
+
+  return wd <= gd ? webIdx : grayIdx;
+}
+
+function lzwEncode(indices, minCodeSize) {
+  const clearCode = 1 << minCodeSize;
+  const eoiCode = clearCode + 1;
+  let codeSize = minCodeSize + 1;
+  let nextCode = eoiCode + 1;
+  const out = [];
+  let bitBuf = 0, bitCount = 0;
+
+  const emit = code => {
+    bitBuf |= code << bitCount;
+    bitCount += codeSize;
+    while (bitCount >= 8) {
+      out.push(bitBuf & 0xff);
+      bitBuf >>>= 8;
+      bitCount -= 8;
+    }
+  };
+
+  const dict = new Map();
+  emit(clearCode);
+
+  if (indices.length === 0) {
+    emit(eoiCode);
+    if (bitCount > 0) out.push(bitBuf & 0xff);
+    return out;
+  }
+
+  let prefix = indices[0];
+  for (let i = 1; i < indices.length; i++) {
+    const k = indices[i];
+    const key = (prefix << 8) | k;
+    if (dict.has(key)) {
+      prefix = dict.get(key);
+    } else {
+      emit(prefix);
+      if (nextCode < 4096) {
+        dict.set(key, nextCode++);
+        if (nextCode > (1 << codeSize) && codeSize < 12) codeSize++;
+      } else {
+        emit(clearCode);
+        dict.clear();
+        nextCode = eoiCode + 1;
+        codeSize = minCodeSize + 1;
+      }
+      prefix = k;
+    }
+  }
+  emit(prefix);
+  emit(eoiCode);
+  if (bitCount > 0) out.push(bitBuf & 0xff);
+  return out;
+}
+
+function encodeGif(frames, width, height, delayMs, loop = 0) {
+  const bytes = [];
+  const push = (...b) => bytes.push(...b);
+  const pushU16 = v => push(v & 0xff, (v >> 8) & 0xff);
+  const pushStr = s => { for (const ch of s) push(ch.charCodeAt(0)); };
+
+  pushStr('GIF89a');
+  pushU16(width); pushU16(height);
+  push(0xF7); push(0); push(0);
+  for (let i = 0; i < GIF_PALETTE.length; i++) push(GIF_PALETTE[i]);
+
+  push(0x21, 0xFF, 0x0B);
+  pushStr('NETSCAPE2.0');
+  push(0x03, 0x01);
+  pushU16(loop);
+  push(0x00);
+
+  const minCodeSize = 8;
+
+  for (const frame of frames) {
+    push(0x21, 0xF9, 0x04);
+    push(0x04);
+    pushU16(Math.max(2, Math.round(delayMs / 10)));
+    push(0); push(0);
+
+    push(0x2C);
+    pushU16(0); pushU16(0);
+    pushU16(width); pushU16(height);
+    push(0);
+
+    const px = frame.data;
+    const indices = new Uint8Array(width * height);
+    for (let i = 0, j = 0; i < indices.length; i++, j += 4) {
+      indices[i] = rgbToPaletteIndex(px[j], px[j + 1], px[j + 2]);
+    }
+    const lzwData = lzwEncode(indices, minCodeSize);
+    push(minCodeSize);
+
+    for (let i = 0; i < lzwData.length; i += 255) {
+      const chunk = lzwData.slice(i, i + 255);
+      push(chunk.length);
+      for (const b of chunk) push(b);
+    }
+    push(0);
+  }
+
+  push(0x3B);
+  return new Blob([new Uint8Array(bytes)], { type: 'image/gif' });
+}
+
+/* =========================================================
+   CODEC SELECTION
+   ========================================================= */
+function pickVideoMime(fmt) {
+  if (fmt === 'webm') {
+    const pref = videoCodec.value;
+    if (pref === 'vp9' && support['video/webm;vp9']) return 'video/webm;codecs=vp9';
+    if (pref === 'vp8' && support['video/webm;vp8']) return 'video/webm;codecs=vp8';
+    if (pref === 'av1' && support['video/webm;av1']) return 'video/webm;codecs=av01';
+    if (support['video/webm;vp9']) return 'video/webm;codecs=vp9';
+    if (support['video/webm;av1']) return 'video/webm;codecs=av01';
+    if (support['video/webm;vp8']) return 'video/webm;codecs=vp8';
+    return 'video/webm';
+  }
+  if (fmt === 'mp4') {
+    if (MediaRecorder.isTypeSupported('video/mp4;codecs=h264')) return 'video/mp4;codecs=h264';
+    if (MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')) return 'video/mp4;codecs=avc1';
+    return 'video/mp4';
+  }
+  return '';
+}
+
+/* =========================================================
+   IMAGE → VIDEO
+   ========================================================= */
+async function imageToVideoHQ(img, W, H, bg, durationSec, fps, preset, customMbps, mime) {
+  const W2 = W + (W % 2);
+  const H2 = H + (H % 2);
+
+  let bitmap = null;
+  try {
+    bitmap = await createImageBitmap(img, {
+      resizeWidth: W2, resizeHeight: H2, resizeQuality: 'high'
+    });
+  } catch { bitmap = null; }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W2; canvas.height = H2;
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  const fillBg = bg || '#000000';
+  ctx.fillStyle = fillBg;
+  ctx.fillRect(0, 0, W2, H2);
+  if (bitmap) ctx.drawImage(bitmap, 0, 0, W2, H2);
+  else        ctx.drawImage(img, 0, 0, W2, H2);
+
+  const bps = computeBitrate(W2, H2, fps, preset, customMbps);
+
+  let stream, track, manualFrames = false;
+  try {
+    stream = canvas.captureStream(0);
+    track = stream.getVideoTracks()[0];
+    manualFrames = track && typeof track.requestFrame === 'function';
+    if (!manualFrames) throw new Error('no requestFrame');
+  } catch {
+    stream = canvas.captureStream(fps);
+    track = stream.getVideoTracks()[0];
+    manualFrames = false;
+  }
+
+  let recorder;
+  try {
+    recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bps });
+  } catch (e) {
+    try { stream.getTracks().forEach(t => t.stop()); } catch {}
+    throw e;
+  }
+
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    recorder.onerror = e => reject(e.error || new Error('Recorder error'));
+    recorder.onstop = () => {
+      try { stream.getTracks().forEach(t => t.stop()); } catch {}
+      if (bitmap && bitmap.close) try { bitmap.close(); } catch {}
+      resolve({ blob: new Blob(chunks, { type: mime }), frames: Math.round(durationSec * fps) });
+    };
+
+    recorder.start(200);
+
+    const totalFrames = Math.round(durationSec * fps);
+    const frameInterval = 1000 / fps;
+    const startWall = performance.now();
+    let frameIndex = 0;
+
+    const renderNext = () => {
+      if (cancelRequested) {
+        setTimeout(() => { try { recorder.stop(); } catch (e) { reject(e); } }, 100);
+        return;
+      }
+      if (frameIndex >= totalFrames) {
+        setTimeout(() => { try { recorder.stop(); } catch (e) { reject(e); } }, 200);
+        return;
+      }
+      const t = frameIndex / totalFrames;
+      const zoom = 1 + 0.015 * Math.sin(t * Math.PI * 2);
+      const zw = W2 * zoom, zh = H2 * zoom;
+      const zx = (W2 - zw) / 2, zy = (H2 - zh) / 2;
+
+      ctx.fillStyle = fillBg;
+      ctx.fillRect(0, 0, W2, H2);
+      if (bitmap) ctx.drawImage(bitmap, zx, zy, zw, zh);
+      else        ctx.drawImage(img, zx, zy, zw, zh);
+
+      applyOverlay(ctx, W2, H2);
+
+      if (manualFrames) try { track.requestFrame(); } catch {}
+
+      frameIndex++;
+      showProgress(15 + (frameIndex / totalFrames) * 70);
+      showFrameCounter(`📸 Кадров отрисовано: <b>${frameIndex}</b> / ${totalFrames}`);
+
+      const targetTime = startWall + frameIndex * frameInterval;
+      const delay = Math.max(0, targetTime - performance.now());
+      setTimeout(renderNext, delay);
+    };
+
+    setTimeout(renderNext, 80);
+  });
+}
+
+/* =========================================================
+   VIDEO → VIDEO
+   ========================================================= */
+async function videoToVideoFramePerfect(video, startTime, endTime, preset, customMbps, mime, onProgress) {
+  const W = video.videoWidth  + (video.videoWidth  % 2);
+  const H = video.videoHeight + (video.videoHeight % 2);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W;
+  canvas.height = H;
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+
+  let sourceStream = null;
+  let audioTracks = [];
+  try {
+    sourceStream = video.captureStream();
+    audioTracks = sourceStream.getAudioTracks();
+  } catch { audioTracks = []; }
+
+  const CAPTURE_FPS = 60;
+  let canvasStream, vTrack;
+  try {
+    canvasStream = canvas.captureStream(CAPTURE_FPS);
+    vTrack = canvasStream.getVideoTracks()[0];
+    if (!vTrack) throw new Error('no video track');
+  } catch (e) {
+    try { sourceStream && sourceStream.getTracks().forEach(t => t.stop()); } catch {}
+    throw new Error('canvas.captureStream не поддерживается: ' + e.message);
+  }
+
+  const combined = new MediaStream([vTrack, ...audioTracks]);
+  const bps = computeBitrate(W, H, CAPTURE_FPS, preset, customMbps);
+
+  let recorder;
+  try {
+    recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: bps });
+  } catch (e) {
+    try { combined.getTracks().forEach(t => t.stop()); } catch {}
+    try { sourceStream && sourceStream.getTracks().forEach(t => t.stop()); } catch {}
+    throw e;
+  }
+
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let stopped = false;
+    let drawnFrames = 0;
+    const totalDuration = Math.max(0.1, endTime - startTime);
+
+    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    recorder.onerror = e => reject(e.error || new Error('Recorder error'));
+    recorder.onstop = () => {
+      try { combined.getTracks().forEach(t => t.stop()); } catch {}
+      try { sourceStream && sourceStream.getTracks().forEach(t => t.stop()); } catch {}
+      resolve({ blob: new Blob(chunks, { type: mime }), frames: drawnFrames, fps: CAPTURE_FPS });
+    };
+
+    const stopAll = () => {
+      if (stopped) return;
+      stopped = true;
+      try { video.pause(); } catch {}
+      setTimeout(() => { try { recorder.stop(); } catch (e) { reject(e); } }, 300);
+    };
+
+    (async () => {
+      try {
+        try { video.pause(); } catch {}
+        video.controls = false;
+
+        await seekVideo(video, startTime);
+        await new Promise(r => setTimeout(r, 200));
+
+        try { ctx.drawImage(video, 0, 0, W, H); } catch {}
+        applyOverlay(ctx, W, H);
+        drawnFrames++;
+
+        recorder.start(500);
+
+        const drawLoop = () => {
+          if (stopped || cancelRequested) { stopAll(); return; }
+
+          const mt = video.currentTime;
+
+          if (mt >= endTime - 0.005 || video.ended) {
+            try { ctx.drawImage(video, 0, 0, W, H); } catch {}
+            applyOverlay(ctx, W, H);
+            drawnFrames++;
+            stopAll();
+            return;
+          }
+
+          try { ctx.drawImage(video, 0, 0, W, H); } catch {}
+          applyOverlay(ctx, W, H);
+          drawnFrames++;
+
+          const elapsed = Math.max(0, mt - startTime);
+          const p = Math.min(1, elapsed / totalDuration);
+          if (onProgress) onProgress(p);
+
+          showFrameCounter(
+            `📸 Кадров нарисовано: <b>${drawnFrames}</b> · ` +
+            `время: <b>${elapsed.toFixed(2)}</b> / ${totalDuration.toFixed(2)} с · ` +
+            `захват: <b>${CAPTURE_FPS}</b> fps`
+          );
+
+          requestAnimationFrame(drawLoop);
+        };
+
+        await video.play();
+        requestAnimationFrame(drawLoop);
+
+      } catch (e) { reject(e); }
+    })();
+  });
+}
+
+function seekVideo(video, time) {
+  return new Promise((resolve, reject) => {
+    if (Math.abs(video.currentTime - time) < 0.005 && video.readyState >= 2) return resolve();
+    const onSeeked = () => {
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('error', onError);
+      resolve();
+    };
+    const onError = e => {
+      video.removeEventListener('seeked', onSeeked);
+      video.removeEventListener('error', onError);
+      reject(e);
+    };
+    video.addEventListener('seeked', onSeeked);
+    video.addEventListener('error', onError);
+    video.currentTime = time;
+  });
+}
+
+/* =========================================================
+   VIDEO → GIF
+   ========================================================= */
+async function videoToGif(video, startTime, endTime, fps, targetW, targetH, onProgress) {
+  const duration = endTime - startTime;
+  const frameCount = Math.max(1, Math.floor(duration * fps));
+  const frameDelay = 1 / fps;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  const wasPaused = video.paused;
+  video.pause();
+
+  const frames = [];
+  for (let i = 0; i < frameCount; i++) {
+    const t = Math.min(startTime + i * frameDelay, endTime - 0.001);
+    try { await seekVideo(video, t); } catch {}
+
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, targetW, targetH);
+    ctx.drawImage(video, 0, 0, targetW, targetH);
+
+    frames.push(ctx.getImageData(0, 0, targetW, targetH));
+
+    if (onProgress) onProgress((i + 1) / frameCount * 0.85);
+    if (i % 3 === 0) await new Promise(r => setTimeout(r, 0));
+  }
+
+  if (!wasPaused) { try { await video.play(); } catch {} }
+  if (onProgress) onProgress(0.9);
+  const gif = encodeGif(frames, targetW, targetH, Math.round(1000 / fps));
+  if (onProgress) onProgress(1);
+  return gif;
+}
+
+/* =========================================================
+   ТЕМА (пункт 5)
+   ========================================================= */
+function applyTheme(theme) {
+  document.body.classList.toggle('light', theme === 'light');
+  themeToggle.textContent = theme === 'light' ? '☀️' : '🌙';
+  try { localStorage.setItem('media-theme', theme); } catch {}
+}
+themeToggle.addEventListener('click', () => {
+  const isLight = document.body.classList.contains('light');
+  applyTheme(isLight ? 'dark' : 'light');
+});
+
+/* =========================================================
+   LOCALSTORAGE (пункт 4)
+   ========================================================= */
+const LS_KEY = 'media-converter-settings';
+const LS_FIELDS = [
+  'qualityRange', 'videoCustomBitrate', 'videoCodec',
+  'vidDuration', 'vidFps', 'gifFps', 'gifRes',
+  'bgMode', 'bgColor', 'fitMode', 'scaleSelect',
+  'overlayText', 'overlayPos', 'overlaySize', 'overlayColor', 'overlayOpacity',
+  'overlayImgPos', 'overlayImgSize', 'overlayImgOpacity'
+];
+
+function saveSettings() {
+  try {
+    const data = { currentVPreset, overlayType };
+    LS_FIELDS.forEach(id => {
+      const el = $(id);
+      if (el) data[id] = el.value;
+    });
+    localStorage.setItem(LS_KEY, JSON.stringify(data));
+  } catch {}
+}
+
+function loadSettings() {
+  try {
+    const data = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
+    LS_FIELDS.forEach(id => {
+      const el = $(id);
+      if (el && data[id] != null) el.value = data[id];
+    });
+    if (data.currentVPreset) {
+      currentVPreset = data.currentVPreset;
+      vqChips.querySelectorAll('.chip').forEach(c =>
+        c.classList.toggle('active', c.dataset.preset === currentVPreset));
+    }
+    if (data.overlayType) setOverlayType(data.overlayType);
+    qualityVal.textContent = qualityRange.value;
+  } catch {}
+}
+
+LS_FIELDS.forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('input', saveSettings);
+  el.addEventListener('change', saveSettings);
+});
+
+/* =========================================================
+   ШОРТКАТЫ (пункт 1)
+   ========================================================= */
+document.addEventListener('keydown', e => {
+  const tag = (document.activeElement.tagName || '').toUpperCase();
+  if (['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
+  if (!sourceVideo) return;
+
+  switch (e.key) {
+    case '[':
+      e.preventDefault();
+      useCurrentBtn.click();
+      break;
+    case ']':
+      e.preventDefault();
+      useCurrentEndBtn.click();
+      break;
+    case ' ':
+      e.preventDefault();
+      if (sourceVideo.paused) sourceVideo.play();
+      else sourceVideo.pause();
+      break;
+    case 'ArrowLeft':
+      e.preventDefault();
+      sourceVideo.currentTime = Math.max(0,
+        sourceVideo.currentTime - (e.shiftKey ? 5 : 1));
+      break;
+    case 'ArrowRight':
+      e.preventDefault();
+      sourceVideo.currentTime = Math.min(sourceVideo.duration,
+        sourceVideo.currentTime + (e.shiftKey ? 5 : 1));
+      break;
+    case 'Home':
+      e.preventDefault();
+      sourceVideo.currentTime = 0;
+      break;
+    case 'End':
+      e.preventDefault();
+      sourceVideo.currentTime = sourceVideo.duration;
+      break;
+  }
+});
+
+/* =========================================================
+   ВОДЯНОЙ ЗНАК (пункт 8)
+   ========================================================= */
+function setOverlayType(type) {
+  overlayType = type;
+  overlayTypeChips.querySelectorAll('.chip').forEach(c =>
+    c.classList.toggle('active', c.dataset.otype === type));
+  overlayTextPanel.style.display  = type === 'text'  ? 'block' : 'none';
+  overlayImagePanel.style.display = type === 'image' ? 'block' : 'none';
+}
+overlayTypeChips.addEventListener('click', e => {
+  const chip = e.target.closest('.chip');
+  if (!chip) return;
+  setOverlayType(chip.dataset.otype);
+  saveSettings();
+});
+
+overlayImageFile.addEventListener('change', async e => {
+  const f = e.target.files[0];
+  if (!f) { overlayImage = null; return; }
+  const url = URL.createObjectURL(f);
+  const img = new Image();
+  await new Promise((res, rej) => {
+    img.onload = res;
+    img.onerror = rej;
+    img.src = url;
+  });
+  overlayImage = img;
+});
+
+function overlayXY(pos, W, H, w, h, pad) {
+  const cx = W / 2, cy = H / 2;
+  const x = { l: pad, c: cx - w/2, r: W - pad - w };
+  const y = { t: pad, m: cy - h/2, b: H - pad - h };
+  const v = pos[0];
+  const hz = pos[1];
+  return {
+    x: x[hz] != null ? x[hz] : pad,
+    y: y[v]  != null ? y[v]  : pad
+  };
+}
+
+function applyOverlay(ctx, W, H) {
+  if (overlayType === 'none') return;
+
+  if (overlayType === 'text') {
+    const text = (overlayText.value || '').trim();
+    if (!text) return;
+
+    const sizePct = parseFloat(overlaySize.value) || 6;
+    const fontSize = Math.max(8, Math.round(H * sizePct / 100));
+    const opacity = parseInt(overlayOpacity.value, 10) / 100;
+    const pad = Math.round(Math.min(W, H) * 0.025);
+
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.font = `700 ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
+    ctx.fillStyle = overlayColor.value;
+    ctx.textBaseline = 'top';
+    ctx.shadowColor = 'rgba(0,0,0,.65)';
+    ctx.shadowBlur = Math.max(2, Math.round(fontSize * 0.25));
+    ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1;
+
+    const metrics = ctx.measureText(text);
+    const { x, y } = overlayXY(overlayPos.value, W, H, metrics.width, fontSize, pad);
+    ctx.fillText(text, x, y);
+    ctx.restore();
+    return;
+  }
+
+  if (overlayType === 'image' && overlayImage && overlayImage.naturalWidth) {
+    const sizePct = parseFloat(overlayImgSize.value) || 15;
+    const opacity = parseInt(overlayImgOpacity.value, 10) / 100;
+    const pad = Math.round(Math.min(W, H) * 0.025);
+
+    const ow = Math.max(8, Math.round(W * sizePct / 100));
+    const oh = Math.round(ow * (overlayImage.naturalHeight / overlayImage.naturalWidth));
+
+    const { x, y } = overlayXY(overlayImgPos.value, W, H, ow, oh, pad);
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.drawImage(overlayImage, x, y, ow, oh);
+    ctx.restore();
+  }
+}
+
+/* =========================================================
+   ПРЕВЬЮ РУЧКИ (пункт 2)
+   ========================================================= */
+function positionHandlePreview(clientX) {
+  const rect = timelineEl.getBoundingClientRect();
+  const w = 144, h = 110;
+  let left = clientX - w / 2;
+  left = Math.max(4, Math.min(window.innerWidth - w - 4, left));
+  const top = Math.max(4, rect.top - h - 8);
+  handlePreview.style.left = left + 'px';
+  handlePreview.style.top  = top + 'px';
+}
+
+function drawHandlePreview(time) {
+  if (previewSeeking) { previewTarget = time; return; }
+  previewSeeking = true;
+  previewTarget = time;
+
+  seekVideo(sourceVideo, time).then(() => {
+    const c = handlePreviewCanvas;
+    c.width = 140; c.height = 90;
+    const cx = c.getContext('2d');
+    const vw = sourceVideo.videoWidth || 16;
+    const vh = sourceVideo.videoHeight || 9;
+    const scale = Math.min(c.width / vw, c.height / vh);
+    const dw = vw * scale, dh = vh * scale;
+    cx.fillStyle = '#000';
+    cx.fillRect(0, 0, c.width, c.height);
+    try { cx.drawImage(sourceVideo, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh); } catch {}
+    handlePreviewTime.textContent = previewTarget.toFixed(2) + ' с';
+
+    if (previewTarget !== time) {
+      const next = previewTarget;
+      previewSeeking = false;
+      drawHandlePreview(next);
+    } else {
+      previewSeeking = false;
+    }
+  }).catch(() => { previewSeeking = false; });
+}
+
+/* =========================================================
+   ПАКЕТНЫЙ РЕЖИМ (пункт 3)
+   ========================================================= */
+batchModeEl.addEventListener('change', () => {
+  fileInput.multiple = batchModeEl.checked;
+  if (!batchModeEl.checked) {
+    batchFiles = [];
+    document.querySelector('.batch-list')?.remove();
+  }
+});
+
+function showBatchUI() {
+  document.querySelector('.batch-list')?.remove();
+  if (!batchFiles.length) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'batch-list show';
+  wrap.innerHTML = `
+    <div class="title">Выбрано файлов: ${batchFiles.length}</div>
+    <div class="batch-items">
+      ${batchFiles.map(f => `
+        <div class="batch-item">
+          <span>${escapeHtml(f.name)}</span>
+          <small>${formatBytes(f.size)}</small>
+        </div>`).join('')}
+    </div>
+  `;
+  dropEl.insertAdjacentElement('afterend', wrap);
+}
+
+/* =========================================================
+   СЛАЙД-ШОУ (пункт 11)
+   ========================================================= */
+slideshowBtn.addEventListener('click', () => {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.multiple = true;
+  input.onchange = async e => {
+    const files = [...e.target.files];
+    if (!files.length) return;
+
+    slideshowImages = [];
+    for (const f of files) {
+      const url = URL.createObjectURL(f);
+      const img = new Image();
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+        img.src = url;
+      });
+      slideshowImages.push(img);
+    }
+
+    thumbWrap.innerHTML = '';
+    const el = document.createElement('img');
+    el.src = slideshowImages[0].src;
+    thumbWrap.appendChild(el);
+    previewEl.classList.add('show');
+    previewEl.classList.remove('video-mode');
+
+    metaInfo.innerHTML = `
+      <b>📽 Слайд-шоу</b><br>
+      Изображений: <b>${slideshowImages.length}</b><br>
+      Длительность кадра: <b>${vidDuration.value} с</b><br>
+      Итого: <b>${(slideshowImages.length * parseInt(vidDuration.value, 10)).toFixed(1)} с</b>
+    `;
+
+    sourceType = 'image';
+    sourceFile = new File([], 'slideshow');
+    sourceImage = slideshowImages[0];
+    rebuildFormats();
+
+    // Автоматически выбрать WEBM, если доступен
+    const webmBtn = formatsEl.querySelector('.fmt[data-format="webm"]:not(:disabled)');
+    if (webmBtn) {
+      formatsEl.querySelectorAll('.fmt').forEach(b => b.classList.toggle('active', b === webmBtn));
+      currentFormat = 'webm';
+    }
+    applyFormatUI();
+    controlsEl.classList.add('show');
+    formatsWrap.classList.add('show');
+    convertBtn.disabled = false;
+    setStatus(`Слайд-шоу: ${slideshowImages.length} фото. Выберите формат WEBM/MP4 и нажмите «Конвертировать».`, 'ok');
+  };
+  input.click();
+});
+
+function drawFit(ctx, img, W, H, alpha) {
+  const vw = img.naturalWidth, vh = img.naturalHeight;
+  const scale = Math.min(W / vw, H / vh);
+  const dw = vw * scale, dh = vh * scale;
+  const dx = (W - dw) / 2, dy = (H - dh) / 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(img, dx, dy, dw, dh);
+  ctx.restore();
+}
+
+async function runSlideshow() {
+  const imgs = slideshowImages;
+  const perImage = Math.max(1, parseInt(vidDuration.value, 10) || 3);
+  const fps = parseInt(vidFps.value, 10) || 30;
+  const fmt = (currentFormat === 'webm' || currentFormat === 'mp4')
+    ? currentFormat : 'webm';
+  const mime = pickVideoMime(fmt);
+
+  const W0 = imgs[0].naturalWidth;
+  const H0 = imgs[0].naturalHeight;
+  const W = W0 + (W0 % 2);
+  const H = H0 + (H0 % 2);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  let stream, track, manual = false;
+  try {
+    stream = canvas.captureStream(0);
+    track = stream.getVideoTracks()[0];
+    manual = track && typeof track.requestFrame === 'function';
+    if (!manual) throw new Error();
+  } catch {
+    stream = canvas.captureStream(fps);
+    track = stream.getVideoTracks()[0];
+    manual = false;
+  }
+
+  const bps = computeBitrate(W, H, fps, currentVPreset,
+    parseFloat(videoCustomBitrate.value) || 0);
+  const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bps });
+
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
+    recorder.onerror = e => reject(e.error || new Error('Recorder error'));
+    recorder.onstop = () => {
+      try { stream.getTracks().forEach(t => t.stop()); } catch {}
+      resolve({ blob: new Blob(chunks, { type: mime }), name: 'slideshow.' + fmt });
+    };
+
+    recorder.start(200);
+
+    const totalPerImage = Math.round(perImage * fps);
+    const totalFrames = totalPerImage * imgs.length;
+    const interval = 1000 / fps;
+    let frameIdx = 0;
+    const startWall = performance.now();
+
+    const step = () => {
+      if (cancelRequested) {
+        setTimeout(() => { try { recorder.stop(); } catch (e) { reject(e); } }, 100);
+        return;
+      }
+      if (frameIdx >= totalFrames) {
+        setTimeout(() => { try { recorder.stop(); } catch (e) { reject(e); } }, 200);
+        return;
+      }
+
+      const imgIdx = Math.floor(frameIdx / totalPerImage);
+      const img = imgs[imgIdx];
+      const tInSlide = (frameIdx % totalPerImage) / totalPerImage;
+
+      const crossDur = 0.4;
+      const tSec = tInSlide * perImage;
+      const timeLeft = perImage - tSec;
+
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+
+      if (imgIdx < imgs.length - 1 && timeLeft < crossDur) {
+        const k = 1 - timeLeft / crossDur;
+        drawFit(ctx, img, W, H, 1 - k);
+        drawFit(ctx, imgs[imgIdx + 1], W, H, k);
+      } else if (imgIdx > 0 && tSec < crossDur) {
+        const k = tSec / crossDur;
+        drawFit(ctx, imgs[imgIdx - 1], W, H, 1 - k);
+        drawFit(ctx, img, W, H, k);
+      } else {
+        drawFit(ctx, img, W, H, 1);
+      }
+
+      applyOverlay(ctx, W, H);
+      if (manual) try { track.requestFrame(); } catch {}
+
+      frameIdx++;
+      const p = frameIdx / totalFrames;
+      showProgress(p * 100);
+      showFrameCounter(`📽 Слайд <b>${imgIdx + 1}</b>/${imgs.length} · кадров: <b>${frameIdx}</b>/${totalFrames}`);
+
+      const target = startWall + frameIdx * interval;
+      const delay = Math.max(0, target - performance.now());
+      setTimeout(step, delay);
+    };
+
+    setTimeout(step, 80);
+  });
+}
+
+/* =========================================================
+   CONVERT — универсальные функции
+   ========================================================= */
+async function convertImageSource(img, base, fmt, opts) {
+  const { bg, q, customMbps } = opts;
+  const scale = parseFloat(scaleSelect.value);
+  let blob;
+
+  switch (fmt) {
+    case 'ico': {
+      const sizes = [...sizeBox.querySelectorAll('input:checked')]
+        .map(i => parseInt(i.value, 10)).sort((a, b) => a - b);
+      if (!sizes.length) throw new Error('Выберите хотя бы один размер иконки');
+      const fitMode = fitModeEl.value;
+      const frames = [];
+      for (const size of sizes) {
+        const c = renderFrame(img, size, size, fitMode, bg);
+        const data = await canvasToPngBytes(c);
+        frames.push({ size, data });
+      }
+      blob = buildIco(frames);
+      break;
+    }
+    case 'png': case 'jpg': case 'webp': case 'avif': {
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = renderFrame(img, w, h, 'stretch', bg);
+      const mime = { png:'image/png', jpg:'image/jpeg', webp:'image/webp', avif:'image/avif' }[fmt];
+      blob = await canvasToBlob(c, mime, q);
+      break;
+    }
+    case 'bmp': {
+      const w = Math.max(1, Math.round(img.naturalWidth * scale));
+      const h = Math.max(1, Math.round(img.naturalHeight * scale));
+      const c = renderFrame(img, w, h, 'stretch', bg || '#ffffff');
+      blob = canvasToBmp(c, bg || '#ffffff');
+      break;
+    }
+    case 'webm': case 'mp4': {
+      const w = Math.max(2, Math.round(img.naturalWidth * scale));
+      const h = Math.max(2, Math.round(img.naturalHeight * scale));
+      const dur = Math.max(1, Math.min(60, parseInt(vidDuration.value, 10) || 5));
+      const fps = parseInt(vidFps.value, 10) || 60;
+      const fitMode = fitModeEl.value;
+
+      const c = renderFrame(img, w, h, fitMode, bg || '#000000');
+      const tmpImg = new Image();
+      tmpImg.src = c.toDataURL('image/png');
+      await new Promise(r => tmpImg.onload = r);
+
+      const mime = pickVideoMime(fmt);
+      const res = await imageToVideoHQ(
+        tmpImg, w, h, bg || '#000000', dur, fps, currentVPreset, customMbps, mime
+      );
+      blob = res.blob;
+      break;
+    }
+    case 'gif': {
+      const w = Math.max(2, Math.round(img.naturalWidth * scale));
+      const h = Math.max(2, Math.round(img.naturalHeight * scale));
+      const c = renderFrame(img, w, h, 'stretch', bg || '#000000');
+      const imgData = c.getContext('2d').getImageData(0, 0, w, h);
+      blob = encodeGif([imgData], w, h, 100);
+      break;
+    }
+    default:
+      throw new Error('неизвестный формат: ' + fmt);
+  }
+
+  return { blob, name: base + '.' + (fmt === 'jpg' ? 'jpg' : fmt) };
+}
+
+async function convertVideoElement(video, base, fmt, opts) {
+  const { bg, q, customMbps } = opts;
+  const vDur = isFinite(video.duration) ? video.duration : 0;
+  let s = parseFloat(trimStart.value) || 0;
+  let e = parseFloat(trimEnd.value) || vDur;
+  if (e <= s) e = s + 1;
+  if (vDur) e = Math.min(e, vDur);
+  let blob;
+
+  switch (fmt) {
+    case 'webm': case 'mp4': {
+      const mime = pickVideoMime(fmt);
+      const res = await videoToVideoFramePerfect(
+        video, s, e, currentVPreset, customMbps, mime,
+        (p) => { showProgress(5 + p * 90); }
+      );
+      blob = res.blob;
+      window.__lastVideoMeta = { frames: res.frames, fps: res.fps, duration: e - s };
+      break;
+    }
+    case 'gif': {
+      const targetW0 = parseInt(gifRes.value, 10) || 0;
+      let W, H;
+      if (targetW0 > 0) {
+        W = targetW0;
+        H = Math.round(video.videoHeight * (targetW0 / video.videoWidth));
+      } else {
+        W = video.videoWidth; H = video.videoHeight;
+      }
+      W = W + (W % 2); H = H + (H % 2);
+      const fps = parseInt(gifFps.value, 10) || 10;
+      blob = await videoToGif(video, s, e, fps, W, H, p => { showProgress(p * 100); });
+      break;
+    }
+    case 'png': case 'jpg': case 'webp': {
+      const scale = parseFloat(scaleSelect.value);
+      const w = Math.max(1, Math.round(video.videoWidth * scale));
+      const h = Math.max(1, Math.round(video.videoHeight * scale));
+      const c = renderFrame(video, w, h, 'stretch', bg);
+      const mime = { png:'image/png', jpg:'image/jpeg', webp:'image/webp' }[fmt];
+      blob = await canvasToBlob(c, mime, q);
+      break;
+    }
+    case 'ico': {
+      const sizes = [...sizeBox.querySelectorAll('input:checked')]
+        .map(i => parseInt(i.value, 10)).sort((a, b) => a - b);
+      if (!sizes.length) throw new Error('Выберите хотя бы один размер иконки');
+      const fitMode = fitModeEl.value;
+      const frames = [];
+      for (const size of sizes) {
+        const c = renderFrame(video, size, size, fitMode, bg);
+        const data = await canvasToPngBytes(c);
+        frames.push({ size, data });
+      }
+      blob = buildIco(frames);
+      break;
+    }
+    default:
+      throw new Error('неизвестный формат: ' + fmt);
+  }
+
+  return { blob, name: base + '.' + fmt };
+}
+
+// Обёртки для одиночного режима
+async function convertImage(base, bg, q, customMbps) {
+  const res = await convertImageSource(sourceImage, base, currentFormat, { bg, q, customMbps });
+  outputBlob = res.blob;
+  outputName = res.name;
+}
+
+async function convertVideoSource(base, bg, q, customMbps) {
+  const res = await convertVideoElement(sourceVideo, base, currentFormat, { bg, q, customMbps });
+  outputBlob = res.blob;
+  outputName = res.name;
+}
+
+/* =========================================================
+   ПАКЕТНАЯ ОБРАБОТКА
+   ========================================================= */
+async function fileToSource(file) {
+  const url = URL.createObjectURL(file);
+  if (file.type.startsWith('image/')) {
+    const img = new Image();
+    await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+    return { type: 'image', source: img, url, name: file.name };
+  }
+  if (file.type.startsWith('video/')) {
+    const v = document.createElement('video');
+    v.src = url; v.muted = true; v.preload = 'auto'; v.crossOrigin = 'anonymous';
+    await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = rej; });
+    return { type: 'video', source: v, url, name: file.name };
+  }
+  throw new Error('неподдерживаемый тип: ' + (file.type || '—'));
+}
+
+async function runBatch(base, bg, q, customMbps) {
+  if (!batchFiles.length) throw new Error('Не выбрано ни одного файла');
+  if (typeof JSZip === 'undefined') throw new Error('JSZip не загружен — проверьте интернет');
+
+  const zip = new JSZip();
+  const folder = zip.folder('converted');
+  const fmt = currentFormat;
+
+  for (let i = 0; i < batchFiles.length; i++) {
+    const f = batchFiles[i];
+    setStatus(`[${i + 1}/${batchFiles.length}] ${f.name}…`);
+    showProgress((i / batchFiles.length) * 100);
+
+    let loaded;
+    try { loaded = await fileToSource(f); }
+    catch (e) { console.warn('Пропуск ' + f.name + ': ' + e.message); continue; }
+
+    try {
+      const baseName = f.name.replace(/\.[^.]+$/, '');
+      const res = loaded.type === 'image'
+        ? await convertImageSource(loaded.source, baseName, fmt, { bg, q, customMbps })
+        : await convertVideoElement(loaded.source, baseName, fmt, { bg, q, customMbps });
+      folder.file(res.name, res.blob);
+    } catch (e) {
+      console.warn('Ошибка на ' + f.name + ': ' + e.message);
+      folder.file('ERROR_' + f.name + '.txt', 'Ошибка: ' + e.message);
+    } finally {
+      URL.revokeObjectURL(loaded.url);
+    }
+  }
+
+  showProgress(100);
+  setStatus('Упаковка в ZIP…');
+  outputBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+  outputName = base + '_batch.zip';
+}
+
+/* =========================================================
+   MAIN CONVERT
+   ========================================================= */
+convertBtn.addEventListener('click', async () => {
+  if (!currentFormat && !batchModeEl.checked && !slideshowImages.length) return;
+
+  cancelRequested = false;
+  convertBtn.disabled = true;
+  resultEl.classList.remove('show');
+  outputBlob = null;
+  showProgress(0);
+  hideFrameCounter();
+  setStatus('Конвертация…');
+
+  try {
+    const bg   = getBackground();
+    const q    = parseInt(qualityRange.value, 10) / 100;
+    const customMbps = parseFloat(videoCustomBitrate.value) || 0;
+    const base = (sourceFile?.name || 'file').replace(/\.[^.]+$/, '') || 'file';
+
+    if (slideshowImages.length > 0 && (currentFormat === 'webm' || currentFormat === 'mp4')) {
+      setStatus('Кодирование слайд-шоу…');
+      const res = await runSlideshow();
+      outputBlob = res.blob;
+      outputName = res.name;
+      window.__lastVideoMeta = { frames: 0, fps: 0,
+        duration: slideshowImages.length * parseInt(vidDuration.value, 10) };
+    } else if (batchModeEl.checked && batchFiles.length > 0) {
+      await runBatch(base, bg, q, customMbps);
+    } else if (sourceType === 'image') {
+      await convertImage(base, bg, q, customMbps);
+    } else if (sourceType === 'video') {
+      await convertVideoSource(base, bg, q, customMbps);
+    }
+
+    if (outputBlob) {
+      showResult(outputBlob, currentFormat);
+      setStatus('Готово! Можно скачать файл.', 'ok');
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus('Ошибка: ' + (err.message || err), 'err');
+  } finally {
+    hideProgress();
+    convertBtn.disabled = false;
+    if (sourceVideo) sourceVideo.controls = true;
+  }
+});
+
+/* =========================================================
+   RESULT
+   ========================================================= */
+function showResult(blob, format) {
+  previewArea.querySelectorAll('img,video').forEach(el => {
+    if (el.src && el.src.startsWith('blob:')) URL.revokeObjectURL(el.src);
+  });
+  previewArea.innerHTML = '';
+
+  resultFormat.textContent = (FORMAT_LABELS[format] || format).toUpperCase();
+  resultSize.textContent = formatBytes(blob.size);
+  resultExtra.style.display = 'none';
+
+  if (format === 'ico') {
+    renderIcoPreview(blob);
+  } else if (format === 'webm' || format === 'mp4') {
+    const url = URL.createObjectURL(blob);
+    const v = document.createElement('video');
+    v.src = url;
+    v.controls = true;
+    v.autoplay = true;
+    v.loop = true;
+    v.muted = true;
+    v.playsInline = true;
+    previewArea.appendChild(v);
+
+    v.onloadedmetadata = () => {
+      const meta = window.__lastVideoMeta;
+      const parts = [`${v.videoWidth}×${v.videoHeight}`];
+      if (meta) {
+        if (meta.fps > 0) parts.push(`${meta.fps} fps`);
+        if (meta.frames > 0) parts.push(`${meta.frames} кадров`);
+        if (meta.duration) parts.push(`${meta.duration.toFixed(2)} с`);
+      }
+      resultExtra.textContent = parts.join(' · ');
+      resultExtra.style.display = 'inline-block';
+      window.__lastVideoMeta = null;
+    };
+  } else {
+    const url = URL.createObjectURL(blob);
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = 'результат';
+    previewArea.appendChild(img);
+  }
+
+  resultEl.classList.add('show');
+  resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function renderIcoPreview(blob) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    const buf = reader.result;
+    const view = new DataView(buf);
+    const count = view.getUint16(4, true);
+
+    const wrap = document.createElement('div');
+    wrap.className = 'ico-list';
+
+    for (let i = 0; i < count; i++) {
+      const o = 6 + i * 16;
+      const w = buf.getUint8(o) || 256;
+      const dataLen = view.getUint32(o + 8, true);
+      const dataOff = view.getUint32(o + 12, true);
+
+      const png = new Blob([new Uint8Array(buf, dataOff, dataLen)], { type: 'image/png' });
+      const url = URL.createObjectURL(png);
+
+      const item = document.createElement('div');
+      item.className = 'ico-item';
+      const disp = Math.min(w, 64);
+      item.innerHTML = `<img src="${url}" width="${disp}" height="${disp}" alt="${w}"><span>${w}px</span>`;
+      wrap.appendChild(item);
+    }
+    previewArea.appendChild(wrap);
+  };
+  reader.readAsArrayBuffer(blob);
+}
+
+/* =========================================================
+   DOWNLOAD
+   ========================================================= */
+downloadBtn.addEventListener('click', () => {
+  if (!outputBlob) return;
+  const url = URL.createObjectURL(outputBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = outputName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+});
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(async () => {
+  await detectSupport();
+  applyFormatUI();
+  if (support['video/webm;vp9']) videoCodec.value = 'vp9';
+  loadSettings();
+  applyTheme(localStorage.getItem('media-theme') || 'dark');
+
+  setUrlNote(
+    '✅Подключёно — можно вставлять прямые ссылки на файлы.',
+    'ok'
+  );
+})();
+</script>
+</body>
+</html>
