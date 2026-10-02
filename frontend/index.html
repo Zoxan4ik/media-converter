@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Универсальный медиа-конвертер</title>
-<link rel="icon" type="image/png" href="icon.png">
+<link rel="icon" type="image/png" href="https://m.media-amazon.com/images/I/41thK03tb2L._AC_UL960_QL65_.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root{
@@ -232,7 +232,6 @@
   }
   .frame-counter b{color:#fff}
 
-  /* ============ TIMELINE / TRIM UI ============ */
   .trim-wrap{
     background:rgba(0,0,0,.25);
     border:1px solid var(--border);
@@ -388,7 +387,6 @@
     color:#fff;
   }
 
-  /* ============ СВЕТЛАЯ ТЕМА ============ */
   body.light{
     --bg:#eef2fa; --bg2:#dfe6f5;
     --card:rgba(255,255,255,.75);
@@ -426,7 +424,6 @@
   }
   .theme-toggle:hover{transform:scale(1.08); border-color:var(--accent)}
 
-  /* ============ ПАКЕТНЫЙ РЕЖИМ / СЛАЙД-ШОУ ============ */
   .mode-row{
     display:flex; align-items:center; justify-content:space-between;
     gap:14px; flex-wrap:wrap;
@@ -459,7 +456,6 @@
   }
   .batch-item small{color:var(--muted)}
 
-  /* ============ ВОДЯНОЙ ЗНАК ============ */
   .overlay-panel{margin-top:10px}
   .overlay-panel input[type=text]{width:100%}
   .overlay-panel input[type=file]{
@@ -473,7 +469,6 @@
     font-weight:700; font-size:12px; margin-right:10px;
   }
 
-  /* ============ ПРЕВЬЮ РУЧКИ ============ */
   .handle-preview{
     position:fixed; display:none;
     border:2px solid var(--accent); border-radius:10px;
@@ -505,9 +500,8 @@
            placeholder="Вставьте ссылку: https://site.com/video.mp4">
     <button class="action btn-primary" id="urlLoadBtn">🔗 Загрузить</button>
   </div>
-  <div class="url-note" id="urlNote">
-    Прямые ссылки на файлы (MP4 · WEBM · MOV · JPG · PNG · GIF · WEBP).
-    YouTube, VK, Instagram и подобные платформы не поддерживаются.
+  <div class="url-note ok" id="urlNote">
+    Подключено — можно вставлять ссылку
   </div>
 
   <div class="mode-row">
@@ -810,9 +804,6 @@
 </div>
 
 <script>
-/* =========================================================
-   ⚙️  ПРОКСИ — боевой (Cloudflare Worker)
-   ========================================================= */
 const PROXY_URL = 'https://media-proxy.zahar55nuri.workers.dev/?url=';
 
 const PUBLIC_PROXIES = [
@@ -823,33 +814,19 @@ const PUBLIC_PROXIES = [
 ];
 
 function getProxyChain() {
-  if (PROXY_URL) {
-    return [{ name: 'свой бэкенд', build: u => PROXY_URL + encodeURIComponent(u) }];
-  }
+  if (PROXY_URL) return [{ name: 'свой бэкенд', build: u => PROXY_URL + encodeURIComponent(u) }];
   return PUBLIC_PROXIES;
 }
 
-/* =========================================================
-   CONFIG
-   ========================================================= */
 const ALL_ICO_SIZES = [16, 24, 32, 48, 64, 128, 256];
 const DEFAULT_ICO   = [16, 32, 48, 256];
-
 const FORMATS_IMAGE = ['ico','png','jpg','webp','avif','bmp','webm','mp4','gif'];
 const FORMATS_VIDEO = ['webm','mp4','gif','png','jpg','webp','ico'];
-
 const FORMAT_LABELS = {
   ico:'ICO', png:'PNG', jpg:'JPG', webp:'WEBP', avif:'AVIF',
   bmp:'BMP', webm:'WEBM', mp4:'MP4', gif:'GIF'
 };
-
-const BPP_PRESETS = {
-  fast:     0.030,
-  balanced: 0.070,
-  high:     0.150,
-  max:      0.300
-};
-
+const BPP_PRESETS = { fast:0.030, balanced:0.070, high:0.150, max:0.300 };
 const EXT_MIME = {
   jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', webp:'image/webp',
   avif:'image/avif', gif:'image/gif', bmp:'image/bmp', svg:'image/svg+xml',
@@ -858,15 +835,10 @@ const EXT_MIME = {
   mkv:'video/x-matroska', avi:'video/x-msvideo', ogv:'video/ogg'
 };
 
-/* =========================================================
-   DOM
-   ========================================================= */
 const $ = id => document.getElementById(id);
-
 const urlInput     = $('urlInput');
 const urlLoadBtn   = $('urlLoadBtn');
 const urlNoteEl    = $('urlNote');
-
 const dropEl      = $('drop');
 const fileInput   = $('file');
 const previewEl   = $('preview');
@@ -875,7 +847,6 @@ const metaInfo    = $('metaInfo');
 const formatsWrap = $('formatsWrap');
 const formatsEl   = $('formats');
 const controlsEl  = $('controls');
-
 const groupSizes    = $('groupSizes');
 const groupFit      = $('groupFit');
 const groupScale    = $('groupScale');
@@ -885,18 +856,15 @@ const groupVideoOpts= $('groupVideoOpts');
 const groupTrim     = $('groupTrim');
 const groupGifOpts  = $('groupGifOpts');
 const groupBg       = $('groupBg');
-
 const sizeBox       = $('sizeBox');
 const fitModeEl     = $('fitMode');
 const scaleSelect   = $('scaleSelect');
 const qualityRange  = $('qualityRange');
 const qualityVal    = $('qualityVal');
-
 const vqChips       = $('vqChips');
 const videoCustomBitrate = $('videoCustomBitrate');
 const videoCodec    = $('videoCodec');
 const videoEstimate = $('videoEstimate');
-
 const vidDuration   = $('vidDuration');
 const vidFps        = $('vidFps');
 const gifFps        = $('gifFps');
@@ -905,7 +873,6 @@ const bgModeEl      = $('bgMode');
 const bgColorEl     = $('bgColor');
 const customColorGroup = $('customColorGroup');
 const bgHint        = $('bgHint');
-
 const timelineEl    = $('timeline');
 const tlStrip       = $('tlStrip');
 const tlRange       = $('tlRange');
@@ -922,21 +889,18 @@ const trimEnd       = $('trimEnd');
 const useCurrentBtn = $('useCurrentBtn');
 const useCurrentEndBtn = $('useCurrentEndBtn');
 const playRangeBtn  = $('playRangeBtn');
-
 const convertBtn    = $('convertBtn');
 const resetBtn      = $('resetBtn');
 const statusEl      = $('status');
 const progressEl    = $('progress');
 const progressBar   = $('progressBar');
 const frameCounter  = $('frameCounter');
-
 const resultEl      = $('result');
 const resultFormat  = $('resultFormat');
 const resultSize    = $('resultSize');
 const resultExtra   = $('resultExtra');
 const previewArea   = $('previewArea');
 const downloadBtn   = $('downloadBtn');
-
 const themeToggle       = $('themeToggle');
 const batchModeEl       = $('batchMode');
 const slideshowBtn      = $('slideshowBtn');
@@ -956,9 +920,6 @@ const handlePreview     = $('handlePreview');
 const handlePreviewCanvas = $('handlePreviewCanvas');
 const handlePreviewTime = $('handlePreviewTime');
 
-/* =========================================================
-   STATE
-   ========================================================= */
 let sourceFile   = null;
 let sourceImage  = null;
 let sourceVideo  = null;
@@ -969,12 +930,10 @@ let outputName   = 'output';
 let sourceURL    = null;
 let currentVPreset = 'high';
 let cancelRequested = false;
-
 let tlBuilt = false;
 let tlDragging = null;
 let tlStopAt = null;
 let tlPlayheadRAF = null;
-
 let batchFiles = [];
 let slideshowImages = [];
 let overlayImage = null;
@@ -982,9 +941,6 @@ let overlayType = 'none';
 let previewSeeking = false;
 let previewTarget = -1;
 
-/* =========================================================
-   SUPPORT DETECTION
-   ========================================================= */
 const support = {
   'image/png': true, 'image/jpeg': true,
   'image/webp': false, 'image/avif': false,
@@ -998,14 +954,12 @@ async function detectSupport() {
   const ctx = c.getContext('2d');
   ctx.fillStyle = '#f00';
   ctx.fillRect(0, 0, 4, 4);
-
   for (const mime of ['image/png','image/jpeg','image/webp','image/avif']) {
     support[mime] = await new Promise(res => {
       try { c.toBlob(b => res(!!b && b.type === mime), mime, 0.9); }
       catch { res(false); }
     });
   }
-
   if (typeof MediaRecorder !== 'undefined') {
     support['video/webm;vp9'] = MediaRecorder.isTypeSupported('video/webm;codecs=vp9');
     support['video/webm;vp8'] = MediaRecorder.isTypeSupported('video/webm;codecs=vp8');
@@ -1031,22 +985,15 @@ function isFormatSupported(fmt) {
   }
 }
 
-/* =========================================================
-   ICO CHECKBOXES
-   ========================================================= */
 ALL_ICO_SIZES.forEach(size => {
   const label = document.createElement('label');
   label.innerHTML = `<input type="checkbox" value="${size}" ${DEFAULT_ICO.includes(size) ? 'checked' : ''}> ${size}×${size}`;
   sizeBox.appendChild(label);
 });
 
-/* =========================================================
-   FORMAT BUTTONS
-   ========================================================= */
 function rebuildFormats() {
   formatsEl.innerHTML = '';
   const list = sourceType === 'video' ? FORMATS_VIDEO : FORMATS_IMAGE;
-
   list.forEach(fmt => {
     const btn = document.createElement('button');
     btn.className = 'fmt';
@@ -1058,7 +1005,6 @@ function rebuildFormats() {
     }
     formatsEl.appendChild(btn);
   });
-
   const first = formatsEl.querySelector('.fmt:not(:disabled)');
   if (first) {
     first.classList.add('active');
@@ -1078,9 +1024,6 @@ formatsEl.addEventListener('click', e => {
   applyFormatUI();
 });
 
-/* =========================================================
-   ЗАГРУЗКА ФАЙЛА
-   ========================================================= */
 dropEl.addEventListener('click', e => {
   if (e.target.tagName !== 'INPUT') fileInput.click();
 });
@@ -1127,14 +1070,12 @@ dropEl.addEventListener('drop', e => {
 document.addEventListener('paste', e => {
   const cd = e.clipboardData;
   if (!cd) return;
-
   for (const it of cd.items || []) {
     if (it.kind === 'file' && (it.type.startsWith('image/') || it.type.startsWith('video/'))) {
       const f = it.getAsFile();
       if (f) { loadFile(f); return; }
     }
   }
-
   const text = (cd.getData('text/plain') || '').trim();
   if (text && /^https?:\/\/\S+$/i.test(text)) {
     urlInput.value = text;
@@ -1160,7 +1101,6 @@ function loadFile(file) {
   resetSource();
   slideshowImages = [];
   cancelRequested = false;
-
   if (file.type.startsWith('video/')) {
     sourceType = 'video';
     sourceFile = file;
@@ -1179,32 +1119,27 @@ function loadImageFile(file) {
   const url = URL.createObjectURL(file);
   sourceURL = url;
   const img = new Image();
-
   img.onload = () => {
     sourceImage = img;
     thumbWrap.innerHTML = '';
     const el = document.createElement('img');
     el.src = url;
     thumbWrap.appendChild(el);
-
     previewEl.classList.add('show');
     previewEl.classList.remove('video-mode');
     formatsWrap.classList.add('show');
     controlsEl.classList.add('show');
     convertBtn.disabled = false;
-
     metaInfo.innerHTML = `
       <b>${escapeHtml(file.name)}</b><br>
       Размер: <b>${img.naturalWidth} × ${img.naturalHeight} px</b><br>
       Вес: <b>${formatBytes(file.size)}</b> · Тип: <b>${escapeHtml(file.type || '—')}</b>
     `;
-
     rebuildFormats();
     applyFormatUI();
     updateEstimate();
     setStatus('Изображение загружено. Выберите формат и настройте параметры.', 'ok');
   };
-
   img.onerror = () => setStatus('Не удалось прочитать изображение.', 'err');
   img.src = url;
 }
@@ -1223,26 +1158,22 @@ function loadVideoFile(file) {
 
   video.onloadedmetadata = async () => {
     sourceVideo = video;
-
     thumbWrap.innerHTML = '';
     thumbWrap.appendChild(video);
     previewEl.classList.add('show', 'video-mode');
     formatsWrap.classList.add('show');
     controlsEl.classList.add('show');
     convertBtn.disabled = false;
-
     const dur = isFinite(video.duration) ? video.duration : 0;
     trimStart.value = 0;
     trimEnd.value = dur ? dur.toFixed(2) : 0;
     trimEnd.max = dur ? dur.toFixed(2) : 60;
-
     metaInfo.innerHTML = `
       <b>${escapeHtml(file.name)}</b><br>
       Разрешение: <b>${video.videoWidth} × ${video.videoHeight} px</b><br>
       Длительность: <b>${dur ? dur.toFixed(2) + ' сек' : '—'}</b><br>
       Вес: <b>${formatBytes(file.size)}</b> · Тип: <b>${escapeHtml(file.type || '—')}</b>
     `;
-
     video.addEventListener('timeupdate', () => {
       if (tlStopAt != null && video.currentTime >= tlStopAt - 0.05) {
         video.pause();
@@ -1251,27 +1182,19 @@ function loadVideoFile(file) {
         playRangeBtn.textContent = '▶▶ Проверить';
       }
     });
-
     rebuildFormats();
     applyFormatUI();
     updateEstimate();
-
     updateTimelineUI();
     startPlayheadLoop();
-
     setStatus('Видео загружено. Можно обрезать мышкой на таймлайне.', 'ok');
-
     try { await buildTimeline(); } catch (e) {
       console.warn('Не удалось построить миниатюры таймлайна:', e);
     }
   };
-
   video.onerror = () => setStatus('Не удалось прочитать видео. Формат может не поддерживаться браузером.', 'err');
 }
 
-/* =========================================================
-   ЗАГРУЗКА ПО ССЫЛКЕ
-   ========================================================= */
 function setUrlNote(text, cls = '') {
   urlNoteEl.textContent = text;
   urlNoteEl.className = 'url-note' + (cls ? ' ' + cls : '');
@@ -1282,10 +1205,8 @@ function guessNameAndType(rawUrl, blobType) {
   try { path = new URL(rawUrl).pathname; } catch {}
   let name = decodeURIComponent((path.split('/').filter(Boolean).pop() || 'media'));
   name = name.split('?')[0].split('#')[0];
-
   let ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
   const generic = !blobType || /octet-stream|binary/i.test(blobType);
-
   if (!ext || !EXT_MIME[ext]) {
     const found = Object.keys(EXT_MIME).find(k => EXT_MIME[k] === blobType);
     if (found) { ext = found; if (!name.includes('.')) name += '.' + ext; }
@@ -1297,15 +1218,12 @@ function guessNameAndType(rawUrl, blobType) {
 async function fetchBlob(url, onProgress) {
   const res = await fetch(url, { mode: 'cors', redirect: 'follow' });
   if (!res.ok) throw new Error('HTTP ' + res.status);
-
   const total = parseInt(res.headers.get('content-length') || '0', 10);
   const ctype = res.headers.get('content-type') || '';
-
   if (!res.body || !total) {
     const b = await res.blob();
     return new Blob([b], { type: ctype || b.type });
   }
-
   const reader = res.body.getReader();
   const chunks = [];
   let received = 0;
@@ -1323,9 +1241,7 @@ async function loadFromUrl(rawUrl) {
   let url = String(rawUrl || '').trim().replace(/^["'<]|["'>]$/g, '');
   if (!url) return;
   if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-
   try { new URL(url); } catch { setUrlNote('Некорректная ссылка', 'err'); return; }
-
   cancelRequested = false;
   resultEl.classList.remove('show');
   outputBlob = null;
@@ -1333,10 +1249,8 @@ async function loadFromUrl(rawUrl) {
   setUrlNote('Скачивание…', 'busy');
   setStatus('Скачивание по ссылке…');
   showProgress(0);
-
   const chain = getProxyChain();
   let lastErr = null;
-
   for (let i = 0; i < chain.length; i++) {
     const proxy = chain[i];
     try {
@@ -1344,35 +1258,25 @@ async function loadFromUrl(rawUrl) {
         showProgress(p * 100);
         setUrlNote(`Скачивание… ${Math.round(p * 100)}% (${proxy.name})`, 'busy');
       });
-
       if (!blob.size) throw new Error('пустой ответ');
-
       const { name, type } = guessNameAndType(url, blob.type);
-
       if (!type.startsWith('image/') && !type.startsWith('video/')) {
         throw new Error('это не изображение и не видео (' + (type || '?') + ')');
       }
-
       const file = new File([blob], name, { type });
       hideProgress();
       setUrlNote(`✅ Загружено: ${name} · ${formatBytes(blob.size)}` +
                  (chain.length > 1 && i > 0 ? ` (через ${proxy.name})` : ''), 'ok');
       loadFile(file);
       return;
-
     } catch (e) {
       lastErr = e;
       console.warn('Прокси «' + proxy.name + '» не сработал:', e.message);
     }
   }
-
   hideProgress();
   convertBtn.disabled = true;
-  setUrlNote(
-    '❌ Не удалось скачать: ' + (lastErr?.message || 'сеть/CORS') +
-    '. Проверьте, что бэкенд доступен (Cloudflare Worker).',
-    'err'
-  );
+  setUrlNote('❌ Не удалось скачать: ' + (lastErr?.message || 'сеть/CORS') + '.', 'err');
   setStatus('Ошибка загрузки по ссылке.', 'err');
 }
 
@@ -1381,17 +1285,12 @@ urlInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); loadFromUrl(urlInput.value); }
 });
 
-/* =========================================================
-   FORMAT UI
-   ========================================================= */
 function applyFormatUI() {
   const f = currentFormat;
   if (!f) return;
-
   const isVideo = sourceType === 'video';
   const isImage = sourceType === 'image';
   const isVideoOutput = (f === 'webm' || f === 'mp4');
-
   groupSizes.style.display = (f === 'ico') ? 'block' : 'none';
   groupFit.style.display = (f === 'ico' || (isImage && (isVideoOutput || f === 'gif'))) ? 'block' : 'none';
   groupScale.style.display = (isImage && f !== 'ico') || (isVideo && ['png','jpg','webp','ico'].includes(f)) ? 'block' : 'none';
@@ -1401,7 +1300,6 @@ function applyFormatUI() {
   groupTrim.style.display = (isVideo && ['webm','mp4','gif'].includes(f)) ? 'block' : 'none';
   groupGifOpts.style.display = (isVideo && f === 'gif') ? 'flex' : 'none';
   groupBg.style.display = 'block';
-
   let hint = '';
   if (f === 'jpg') hint = 'JPG не поддерживает прозрачность — прозрачные области будут залиты фоном.';
   else if (f === 'bmp') hint = 'BMP не поддерживает прозрачность — прозрачные области будут залиты фоном.';
@@ -1412,12 +1310,8 @@ function applyFormatUI() {
   else if (f === 'mp4' && isVideo) hint = '🎯 MP4: сохраняются все кадры источника + звук.';
   else if (f === 'ico' && isVideo) hint = 'ICO: будет использован текущий кадр видео.';
   else if (isVideo && ['png','jpg','webp'].includes(f)) hint = 'Будет взят текущий кадр из плеера.';
-
   bgHint.textContent = hint;
-
-  if ((f === 'jpg' || f === 'bmp') && bgModeEl.value === 'transparent') {
-    bgModeEl.value = 'white';
-  }
+  if ((f === 'jpg' || f === 'bmp') && bgModeEl.value === 'transparent') bgModeEl.value = 'white';
   updateBgColorVisibility();
   updateEstimate();
 }
@@ -1443,70 +1337,50 @@ vidDuration.addEventListener('input', updateEstimate);
 scaleSelect.addEventListener('change', updateEstimate);
 videoCodec.addEventListener('change', updateEstimate);
 
-/* =========================================================
-   TIMELINE — построение миниатюр
-   ========================================================= */
 async function buildTimeline() {
   const video = sourceVideo;
   if (!video || !isFinite(video.duration) || video.duration <= 0) return;
-
   timelineEl.classList.add('loading');
-
   const wasPaused = video.paused;
   const prevTime  = video.currentTime;
   try { video.pause(); } catch {}
-
-  const COUNT   = 16;
-  const THUMB_W = 96;
-  const THUMB_H = 72;
-  const totalW  = COUNT * THUMB_W;
-
+  const COUNT = 16, THUMB_W = 96, THUMB_H = 72;
+  const totalW = COUNT * THUMB_W;
   const canvas = document.createElement('canvas');
-  canvas.width  = totalW;
-  canvas.height = THUMB_H;
+  canvas.width = totalW; canvas.height = THUMB_H;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, totalW, THUMB_H);
-
   const dur = video.duration;
-
   for (let i = 0; i < COUNT; i++) {
     const t = (i / COUNT) * (dur - 0.05) + 0.02;
     try { await seekVideo(video, Math.min(t, Math.max(0, dur - 0.05))); } catch {}
     try {
-      const vw = video.videoWidth  || 16;
+      const vw = video.videoWidth || 16;
       const vh = video.videoHeight || 9;
       const scale = Math.min(THUMB_W / vw, THUMB_H / vh);
       const dw = vw * scale, dh = vh * scale;
       const dx = i * THUMB_W + (THUMB_W - dw) / 2;
       const dy = (THUMB_H - dh) / 2;
-
       ctx.fillStyle = '#000';
       ctx.fillRect(i * THUMB_W, 0, THUMB_W, THUMB_H);
       ctx.drawImage(video, dx, dy, dw, dh);
-
       ctx.fillStyle = 'rgba(255,255,255,.08)';
       ctx.fillRect(i * THUMB_W, 0, 1, THUMB_H);
     } catch (e) {}
   }
-
   try { await seekVideo(video, prevTime); } catch {}
   if (!wasPaused) { try { await video.play(); } catch {} }
-
   try {
     const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
     tlStrip.style.backgroundImage = `url(${dataUrl})`;
     tlStrip.style.backgroundSize  = '100% 100%';
     tlStrip.style.backgroundRepeat = 'no-repeat';
   } catch (e) { console.warn('toDataURL failed:', e); }
-
   timelineEl.classList.remove('loading');
   tlBuilt = true;
 }
 
-/* =========================================================
-   TIMELINE — обновление позиций
-   ========================================================= */
 function getTrimTimes() {
   if (!sourceVideo || !isFinite(sourceVideo.duration)) return { s: 0, e: 1, dur: 1 };
   const dur = sourceVideo.duration;
@@ -1522,28 +1396,20 @@ function getTrimTimes() {
 
 function updateTimelineUI() {
   if (!sourceVideo || !isFinite(sourceVideo.duration)) return;
-
   const { s, e, dur } = getTrimTimes();
   const leftPct  = (s / dur) * 100;
   const rightPct = (e / dur) * 100;
-
   tlRange.style.left  = leftPct + '%';
   tlRange.style.width = (rightPct - leftPct) + '%';
-
   tlHandleLeft.style.left  = leftPct + '%';
   tlHandleRight.style.left = rightPct + '%';
-
   tlDimLeft.style.width  = leftPct + '%';
   tlDimRight.style.width = (100 - rightPct) + '%';
-
   tlStartBadge.textContent = s.toFixed(2) + ' с';
   tlEndBadge.textContent   = e.toFixed(2) + ' с';
   tlDurBadge.textContent   = (e - s).toFixed(2) + ' с';
 }
 
-/* =========================================================
-   TIMELINE — плейхед
-   ========================================================= */
 function startPlayheadLoop() {
   if (tlPlayheadRAF) cancelAnimationFrame(tlPlayheadRAF);
   const loop = () => {
@@ -1556,9 +1422,6 @@ function startPlayheadLoop() {
   tlPlayheadRAF = requestAnimationFrame(loop);
 }
 
-/* =========================================================
-   TIMELINE — перетаскивание ручек
-   ========================================================= */
 function timelinePointerToTime(clientX) {
   const rect = timelineEl.getBoundingClientRect();
   const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
@@ -1593,14 +1456,11 @@ window.addEventListener('pointermove', e => {
   if (!tlDragging || !sourceVideo) return;
   const dur = sourceVideo.duration;
   let t = timelinePointerToTime(e.clientX);
-
   positionHandlePreview(e.clientX);
   handlePreview.style.display = 'block';
-
   const MIN_GAP = 0.15;
   let s = parseFloat(trimStart.value) || 0;
   let en = parseFloat(trimEnd.value) || dur;
-
   if (tlDragging === 'start') {
     t = Math.max(0, Math.min(t, en - MIN_GAP));
     trimStart.value = t.toFixed(2);
@@ -1608,10 +1468,8 @@ window.addEventListener('pointermove', e => {
     t = Math.max(s + MIN_GAP, Math.min(t, dur));
     trimEnd.value = t.toFixed(2);
   }
-
   updateTimelineUI();
   updateEstimate();
-
   const previewTime = tlDragging === 'start'
     ? parseFloat(trimStart.value)
     : parseFloat(trimEnd.value);
@@ -1637,7 +1495,7 @@ timelineEl.addEventListener('click', e => {
 trimStart.addEventListener('input', () => {
   const dur = sourceVideo ? sourceVideo.duration : 0;
   let s = parseFloat(trimStart.value) || 0;
-  let e = parseFloat(trimEnd.value)   || dur;
+  let e = parseFloat(trimEnd.value) || dur;
   const MIN_GAP = 0.15;
   if (s < 0) s = 0;
   if (s > e - MIN_GAP) s = Math.max(0, e - MIN_GAP);
@@ -1649,7 +1507,7 @@ trimStart.addEventListener('input', () => {
 trimEnd.addEventListener('input', () => {
   const dur = sourceVideo ? sourceVideo.duration : 0;
   let s = parseFloat(trimStart.value) || 0;
-  let e = parseFloat(trimEnd.value)   || dur;
+  let e = parseFloat(trimEnd.value) || dur;
   const MIN_GAP = 0.15;
   if (e > dur) e = dur;
   if (e < s + MIN_GAP) e = Math.min(dur, s + MIN_GAP);
@@ -1686,7 +1544,6 @@ useCurrentEndBtn.addEventListener('click', () => {
 playRangeBtn.addEventListener('click', async () => {
   if (!sourceVideo) return;
   const { s, e } = getTrimTimes();
-
   if (tlStopAt != null) {
     tlStopAt = null;
     try { sourceVideo.pause(); } catch {}
@@ -1694,7 +1551,6 @@ playRangeBtn.addEventListener('click', async () => {
     playRangeBtn.textContent = '▶▶ Проверить';
     return;
   }
-
   try {
     sourceVideo.currentTime = s;
     await new Promise(r => setTimeout(r, 80));
@@ -1715,9 +1571,6 @@ setInterval(() => {
   }
 }, 500);
 
-/* =========================================================
-   BITRATE & ESTIMATE
-   ========================================================= */
 function computeBitrate(W, H, fps, preset, customMbps) {
   if (customMbps > 0) return Math.round(customMbps * 1_000_000);
   const bpp = BPP_PRESETS[preset] || BPP_PRESETS.high;
@@ -1730,7 +1583,6 @@ function getTargetDimensions() {
   if (sourceImage) { W = sourceImage.naturalWidth; H = sourceImage.naturalHeight; }
   else if (sourceVideo) { W = sourceVideo.videoWidth; H = sourceVideo.videoHeight; }
   else return null;
-
   if (sourceType === 'image') {
     const scale = parseFloat(scaleSelect.value) || 1;
     W = Math.round(W * scale);
@@ -1743,13 +1595,10 @@ function updateEstimate() {
   if (!sourceType) { videoEstimate.textContent = '≈ —'; return; }
   const dims = getTargetDimensions();
   if (!dims) { videoEstimate.textContent = '≈ —'; return; }
-
   let { W, H } = dims;
   W = W + (W % 2); H = H + (H % 2);
-
   const isVideo = sourceType === 'video';
   let fps, dur;
-
   if (isVideo) {
     fps = 60;
     const { s, e } = getTrimTimes();
@@ -1758,20 +1607,15 @@ function updateEstimate() {
     fps = parseInt(vidFps.value, 10) || 30;
     dur = parseInt(vidDuration.value, 10) || 3;
   }
-
   const custom = parseFloat(videoCustomBitrate.value) || 0;
   const bps = computeBitrate(W, H, fps, currentVPreset, custom);
   const bytes = (bps / 8) * dur;
   const frames = Math.round(fps * dur);
-
   videoEstimate.textContent = isVideo
     ? `≈ ${formatBytes(bytes)} · ${(bps / 1e6).toFixed(1)} Мбит/с · ${W}×${H} · 60 fps`
     : `≈ ${formatBytes(bytes)} · ${(bps / 1e6).toFixed(1)} Мбит/с · ${W}×${H} @ ${fps} fps · ${frames} кадров`;
 }
 
-/* =========================================================
-   RESET
-   ========================================================= */
 resetBtn.addEventListener('click', () => {
   resetSource();
   sourceFile = null;
@@ -1782,13 +1626,12 @@ resetBtn.addEventListener('click', () => {
   controlsEl.classList.remove('show');
   resultEl.classList.remove('show');
   convertBtn.disabled = true;
-  setUrlNote('Прямые ссылки на файлы (MP4 · WEBM · MOV · JPG · PNG · GIF · WEBP).');
+  setUrlNote('Подключено — можно вставлять ссылку', 'ok');
   setStatus('');
   hideProgress();
   hideFrameCounter();
   playRangeBtn.classList.remove('playing');
   playRangeBtn.textContent = '▶▶ Проверить';
-
   batchFiles = [];
   slideshowImages = [];
   document.querySelector('.batch-list')?.remove();
@@ -1796,9 +1639,6 @@ resetBtn.addEventListener('click', () => {
   fileInput.multiple = false;
 });
 
-/* =========================================================
-   UTILS
-   ========================================================= */
 function setStatus(text, type = '') {
   statusEl.textContent = text;
   statusEl.className = 'status' + (type ? ' ' + type : '');
@@ -1836,9 +1676,6 @@ function getBackground() {
   return null;
 }
 
-/* =========================================================
-   CANVAS HELPERS
-   ========================================================= */
 function renderFrame(img, w, h, fitMode, bg) {
   const canvas = document.createElement('canvas');
   canvas.width  = Math.max(1, Math.round(w));
@@ -1846,12 +1683,9 @@ function renderFrame(img, w, h, fitMode, bg) {
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-
   if (bg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, canvas.width, canvas.height); }
-
   const iw = img.naturalWidth || img.videoWidth || img.width;
   const ih = img.naturalHeight || img.videoHeight || img.height;
-
   if (fitMode === 'stretch') {
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
     applyOverlay(ctx, canvas.width, canvas.height);
@@ -1862,7 +1696,6 @@ function renderFrame(img, w, h, fitMode, bg) {
     : Math.min(canvas.width / iw, canvas.height / ih);
   const dw = iw * scale, dh = ih * scale;
   const dx = (canvas.width - dw) / 2, dy = (canvas.height - dh) / 2;
-
   if (fitMode === 'cover') {
     ctx.save();
     ctx.beginPath();
@@ -1873,9 +1706,7 @@ function renderFrame(img, w, h, fitMode, bg) {
   } else {
     ctx.drawImage(img, dx, dy, dw, dh);
   }
-
   applyOverlay(ctx, canvas.width, canvas.height);
-
   return canvas;
 }
 
@@ -1885,7 +1716,6 @@ function canvasToBlob(canvas, mime, quality) {
                   mime, quality);
   });
 }
-
 function canvasToPngBytes(canvas) {
   return new Promise((resolve, reject) => {
     canvas.toBlob(b => {
@@ -1895,23 +1725,17 @@ function canvasToPngBytes(canvas) {
   });
 }
 
-/* =========================================================
-   ICO ENCODER
-   ========================================================= */
 function buildIco(frames) {
   const count = frames.length;
   const headerSize = 6 + 16 * count;
   let totalData = 0;
   frames.forEach(f => totalData += f.data.length);
-
   const buffer = new ArrayBuffer(headerSize + totalData);
   const bytes  = new Uint8Array(buffer);
   const view   = new DataView(buffer);
-
   view.setUint16(0, 0, true);
   view.setUint16(2, 1, true);
   view.setUint16(4, count, true);
-
   let dataOffset = headerSize;
   frames.forEach((frame, i) => {
     const o = 6 + i * 16;
@@ -1925,13 +1749,9 @@ function buildIco(frames) {
     bytes.set(frame.data, dataOffset);
     dataOffset += frame.data.length;
   });
-
   return new Blob([buffer], { type: 'image/x-icon' });
 }
 
-/* =========================================================
-   BMP ENCODER
-   ========================================================= */
 function canvasToBmp(canvas, bg) {
   const w = canvas.width, h = canvas.height;
   let src = canvas;
@@ -1944,16 +1764,13 @@ function canvasToBmp(canvas, bg) {
     tctx.drawImage(canvas, 0, 0);
     src = tmp;
   }
-
   const data = src.getContext('2d').getImageData(0, 0, w, h).data;
   const rowSize = Math.floor((24 * w + 31) / 32) * 4;
   const pixelDataSize = rowSize * h;
   const fileSize = 54 + pixelDataSize;
-
   const buffer = new ArrayBuffer(fileSize);
   const view   = new DataView(buffer);
   const bytes  = new Uint8Array(buffer);
-
   bytes[0] = 0x42; bytes[1] = 0x4D;
   view.setUint32(2, fileSize, true);
   view.setUint32(10, 54, true);
@@ -1965,7 +1782,6 @@ function canvasToBmp(canvas, bg) {
   view.setUint32(34, pixelDataSize, true);
   view.setInt32(38, 2835, true);
   view.setInt32(42, 2835, true);
-
   for (let y = 0; y < h; y++) {
     const srcY = h - 1 - y;
     for (let x = 0; x < w; x++) {
@@ -1979,9 +1795,6 @@ function canvasToBmp(canvas, bg) {
   return new Blob([buffer], { type: 'image/bmp' });
 }
 
-/* =========================================================
-   GIF ENCODER
-   ========================================================= */
 const GIF_PALETTE = (() => {
   const p = new Uint8Array(256 * 3);
   let i = 0;
@@ -2004,17 +1817,14 @@ function rgbToPaletteIndex(r, g, b) {
   const gi = Math.round(g * 5 / 255);
   const bi = Math.round(b * 5 / 255);
   const webIdx = ri * 36 + gi * 6 + bi;
-
   const wr = GIF_PALETTE[webIdx * 3];
   const wg = GIF_PALETTE[webIdx * 3 + 1];
   const wb = GIF_PALETTE[webIdx * 3 + 2];
   const wd = (r - wr) ** 2 + (g - wg) ** 2 + (b - wb) ** 2;
-
   const gray = Math.round((r + g + b) / 3);
   const grayIdx = 216 + Math.round(gray * 39 / 255);
   const gv = GIF_PALETTE[grayIdx * 3];
   const gd = (r - gv) ** 2 + (g - gv) ** 2 + (b - gv) ** 2;
-
   return wd <= gd ? webIdx : grayIdx;
 }
 
@@ -2025,7 +1835,6 @@ function lzwEncode(indices, minCodeSize) {
   let nextCode = eoiCode + 1;
   const out = [];
   let bitBuf = 0, bitCount = 0;
-
   const emit = code => {
     bitBuf |= code << bitCount;
     bitCount += codeSize;
@@ -2035,16 +1844,13 @@ function lzwEncode(indices, minCodeSize) {
       bitCount -= 8;
     }
   };
-
   const dict = new Map();
   emit(clearCode);
-
   if (indices.length === 0) {
     emit(eoiCode);
     if (bitCount > 0) out.push(bitBuf & 0xff);
     return out;
   }
-
   let prefix = indices[0];
   for (let i = 1; i < indices.length; i++) {
     const k = indices[i];
@@ -2076,31 +1882,25 @@ function encodeGif(frames, width, height, delayMs, loop = 0) {
   const push = (...b) => bytes.push(...b);
   const pushU16 = v => push(v & 0xff, (v >> 8) & 0xff);
   const pushStr = s => { for (const ch of s) push(ch.charCodeAt(0)); };
-
   pushStr('GIF89a');
   pushU16(width); pushU16(height);
   push(0xF7); push(0); push(0);
   for (let i = 0; i < GIF_PALETTE.length; i++) push(GIF_PALETTE[i]);
-
   push(0x21, 0xFF, 0x0B);
   pushStr('NETSCAPE2.0');
   push(0x03, 0x01);
   pushU16(loop);
   push(0x00);
-
   const minCodeSize = 8;
-
   for (const frame of frames) {
     push(0x21, 0xF9, 0x04);
     push(0x04);
     pushU16(Math.max(2, Math.round(delayMs / 10)));
     push(0); push(0);
-
     push(0x2C);
     pushU16(0); pushU16(0);
     pushU16(width); pushU16(height);
     push(0);
-
     const px = frame.data;
     const indices = new Uint8Array(width * height);
     for (let i = 0, j = 0; i < indices.length; i++, j += 4) {
@@ -2108,7 +1908,6 @@ function encodeGif(frames, width, height, delayMs, loop = 0) {
     }
     const lzwData = lzwEncode(indices, minCodeSize);
     push(minCodeSize);
-
     for (let i = 0; i < lzwData.length; i += 255) {
       const chunk = lzwData.slice(i, i + 255);
       push(chunk.length);
@@ -2116,14 +1915,10 @@ function encodeGif(frames, width, height, delayMs, loop = 0) {
     }
     push(0);
   }
-
   push(0x3B);
   return new Blob([new Uint8Array(bytes)], { type: 'image/gif' });
 }
 
-/* =========================================================
-   CODEC SELECTION
-   ========================================================= */
 function pickVideoMime(fmt) {
   if (fmt === 'webm') {
     const pref = videoCodec.value;
@@ -2143,34 +1938,24 @@ function pickVideoMime(fmt) {
   return '';
 }
 
-/* =========================================================
-   IMAGE → VIDEO
-   ========================================================= */
 async function imageToVideoHQ(img, W, H, bg, durationSec, fps, preset, customMbps, mime) {
   const W2 = W + (W % 2);
   const H2 = H + (H % 2);
-
   let bitmap = null;
   try {
-    bitmap = await createImageBitmap(img, {
-      resizeWidth: W2, resizeHeight: H2, resizeQuality: 'high'
-    });
+    bitmap = await createImageBitmap(img, { resizeWidth: W2, resizeHeight: H2, resizeQuality: 'high' });
   } catch { bitmap = null; }
-
   const canvas = document.createElement('canvas');
   canvas.width = W2; canvas.height = H2;
   const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-
   const fillBg = bg || '#000000';
   ctx.fillStyle = fillBg;
   ctx.fillRect(0, 0, W2, H2);
   if (bitmap) ctx.drawImage(bitmap, 0, 0, W2, H2);
   else        ctx.drawImage(img, 0, 0, W2, H2);
-
   const bps = computeBitrate(W2, H2, fps, preset, customMbps);
-
   let stream, track, manualFrames = false;
   try {
     stream = canvas.captureStream(0);
@@ -2182,7 +1967,6 @@ async function imageToVideoHQ(img, W, H, bg, durationSec, fps, preset, customMbp
     track = stream.getVideoTracks()[0];
     manualFrames = false;
   }
-
   let recorder;
   try {
     recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bps });
@@ -2190,7 +1974,6 @@ async function imageToVideoHQ(img, W, H, bg, durationSec, fps, preset, customMbp
     try { stream.getTracks().forEach(t => t.stop()); } catch {}
     throw e;
   }
-
   return new Promise((resolve, reject) => {
     const chunks = [];
     recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
@@ -2200,14 +1983,11 @@ async function imageToVideoHQ(img, W, H, bg, durationSec, fps, preset, customMbp
       if (bitmap && bitmap.close) try { bitmap.close(); } catch {}
       resolve({ blob: new Blob(chunks, { type: mime }), frames: Math.round(durationSec * fps) });
     };
-
     recorder.start(200);
-
     const totalFrames = Math.round(durationSec * fps);
     const frameInterval = 1000 / fps;
     const startWall = performance.now();
     let frameIndex = 0;
-
     const renderNext = () => {
       if (cancelRequested) {
         setTimeout(() => { try { recorder.stop(); } catch (e) { reject(e); } }, 100);
@@ -2221,52 +2001,38 @@ async function imageToVideoHQ(img, W, H, bg, durationSec, fps, preset, customMbp
       const zoom = 1 + 0.015 * Math.sin(t * Math.PI * 2);
       const zw = W2 * zoom, zh = H2 * zoom;
       const zx = (W2 - zw) / 2, zy = (H2 - zh) / 2;
-
       ctx.fillStyle = fillBg;
       ctx.fillRect(0, 0, W2, H2);
       if (bitmap) ctx.drawImage(bitmap, zx, zy, zw, zh);
       else        ctx.drawImage(img, zx, zy, zw, zh);
-
       applyOverlay(ctx, W2, H2);
-
       if (manualFrames) try { track.requestFrame(); } catch {}
-
       frameIndex++;
       showProgress(15 + (frameIndex / totalFrames) * 70);
       showFrameCounter(`📸 Кадров отрисовано: <b>${frameIndex}</b> / ${totalFrames}`);
-
       const targetTime = startWall + frameIndex * frameInterval;
       const delay = Math.max(0, targetTime - performance.now());
       setTimeout(renderNext, delay);
     };
-
     setTimeout(renderNext, 80);
   });
 }
 
-/* =========================================================
-   VIDEO → VIDEO
-   ========================================================= */
 async function videoToVideoFramePerfect(video, startTime, endTime, preset, customMbps, mime, onProgress) {
   const W = video.videoWidth  + (video.videoWidth  % 2);
   const H = video.videoHeight + (video.videoHeight % 2);
-
   const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
+  canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);
-
-  let sourceStream = null;
-  let audioTracks = [];
+  let sourceStream = null, audioTracks = [];
   try {
     sourceStream = video.captureStream();
     audioTracks = sourceStream.getAudioTracks();
   } catch { audioTracks = []; }
-
   const CAPTURE_FPS = 60;
   let canvasStream, vTrack;
   try {
@@ -2277,10 +2043,8 @@ async function videoToVideoFramePerfect(video, startTime, endTime, preset, custo
     try { sourceStream && sourceStream.getTracks().forEach(t => t.stop()); } catch {}
     throw new Error('canvas.captureStream не поддерживается: ' + e.message);
   }
-
   const combined = new MediaStream([vTrack, ...audioTracks]);
   const bps = computeBitrate(W, H, CAPTURE_FPS, preset, customMbps);
-
   let recorder;
   try {
     recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: bps });
@@ -2289,13 +2053,11 @@ async function videoToVideoFramePerfect(video, startTime, endTime, preset, custo
     try { sourceStream && sourceStream.getTracks().forEach(t => t.stop()); } catch {}
     throw e;
   }
-
   return new Promise((resolve, reject) => {
     const chunks = [];
     let stopped = false;
     let drawnFrames = 0;
     const totalDuration = Math.max(0.1, endTime - startTime);
-
     recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
     recorder.onerror = e => reject(e.error || new Error('Recorder error'));
     recorder.onstop = () => {
@@ -2303,33 +2065,25 @@ async function videoToVideoFramePerfect(video, startTime, endTime, preset, custo
       try { sourceStream && sourceStream.getTracks().forEach(t => t.stop()); } catch {}
       resolve({ blob: new Blob(chunks, { type: mime }), frames: drawnFrames, fps: CAPTURE_FPS });
     };
-
     const stopAll = () => {
       if (stopped) return;
       stopped = true;
       try { video.pause(); } catch {}
       setTimeout(() => { try { recorder.stop(); } catch (e) { reject(e); } }, 300);
     };
-
     (async () => {
       try {
         try { video.pause(); } catch {}
         video.controls = false;
-
         await seekVideo(video, startTime);
         await new Promise(r => setTimeout(r, 200));
-
         try { ctx.drawImage(video, 0, 0, W, H); } catch {}
         applyOverlay(ctx, W, H);
         drawnFrames++;
-
         recorder.start(500);
-
         const drawLoop = () => {
           if (stopped || cancelRequested) { stopAll(); return; }
-
           const mt = video.currentTime;
-
           if (mt >= endTime - 0.005 || video.ended) {
             try { ctx.drawImage(video, 0, 0, W, H); } catch {}
             applyOverlay(ctx, W, H);
@@ -2337,27 +2091,21 @@ async function videoToVideoFramePerfect(video, startTime, endTime, preset, custo
             stopAll();
             return;
           }
-
           try { ctx.drawImage(video, 0, 0, W, H); } catch {}
           applyOverlay(ctx, W, H);
           drawnFrames++;
-
           const elapsed = Math.max(0, mt - startTime);
           const p = Math.min(1, elapsed / totalDuration);
           if (onProgress) onProgress(p);
-
           showFrameCounter(
             `📸 Кадров нарисовано: <b>${drawnFrames}</b> · ` +
             `время: <b>${elapsed.toFixed(2)}</b> / ${totalDuration.toFixed(2)} с · ` +
             `захват: <b>${CAPTURE_FPS}</b> fps`
           );
-
           requestAnimationFrame(drawLoop);
         };
-
         await video.play();
         requestAnimationFrame(drawLoop);
-
       } catch (e) { reject(e); }
     })();
   });
@@ -2382,39 +2130,28 @@ function seekVideo(video, time) {
   });
 }
 
-/* =========================================================
-   VIDEO → GIF
-   ========================================================= */
 async function videoToGif(video, startTime, endTime, fps, targetW, targetH, onProgress) {
   const duration = endTime - startTime;
   const frameCount = Math.max(1, Math.floor(duration * fps));
   const frameDelay = 1 / fps;
-
   const canvas = document.createElement('canvas');
-  canvas.width = targetW;
-  canvas.height = targetH;
+  canvas.width = targetW; canvas.height = targetH;
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-
   const wasPaused = video.paused;
   video.pause();
-
   const frames = [];
   for (let i = 0; i < frameCount; i++) {
     const t = Math.min(startTime + i * frameDelay, endTime - 0.001);
     try { await seekVideo(video, t); } catch {}
-
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, targetW, targetH);
     ctx.drawImage(video, 0, 0, targetW, targetH);
-
     frames.push(ctx.getImageData(0, 0, targetW, targetH));
-
     if (onProgress) onProgress((i + 1) / frameCount * 0.85);
     if (i % 3 === 0) await new Promise(r => setTimeout(r, 0));
   }
-
   if (!wasPaused) { try { await video.play(); } catch {} }
   if (onProgress) onProgress(0.9);
   const gif = encodeGif(frames, targetW, targetH, Math.round(1000 / fps));
@@ -2422,9 +2159,6 @@ async function videoToGif(video, startTime, endTime, fps, targetW, targetH, onPr
   return gif;
 }
 
-/* =========================================================
-   ТЕМА
-   ========================================================= */
 function applyTheme(theme) {
   document.body.classList.toggle('light', theme === 'light');
   themeToggle.textContent = theme === 'light' ? '☀️' : '🌙';
@@ -2435,9 +2169,6 @@ themeToggle.addEventListener('click', () => {
   applyTheme(isLight ? 'dark' : 'light');
 });
 
-/* =========================================================
-   LOCALSTORAGE
-   ========================================================= */
 const LS_KEY = 'media-converter-settings';
 const LS_FIELDS = [
   'qualityRange', 'videoCustomBitrate', 'videoCodec',
@@ -2457,7 +2188,6 @@ function saveSettings() {
     localStorage.setItem(LS_KEY, JSON.stringify(data));
   } catch {}
 }
-
 function loadSettings() {
   try {
     const data = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
@@ -2474,7 +2204,6 @@ function loadSettings() {
     qualityVal.textContent = qualityRange.value;
   } catch {}
 }
-
 LS_FIELDS.forEach(id => {
   const el = $(id);
   if (!el) return;
@@ -2482,52 +2211,30 @@ LS_FIELDS.forEach(id => {
   el.addEventListener('change', saveSettings);
 });
 
-/* =========================================================
-   ШОРТКАТЫ
-   ========================================================= */
 document.addEventListener('keydown', e => {
   const tag = (document.activeElement.tagName || '').toUpperCase();
   if (['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
   if (!sourceVideo) return;
-
   switch (e.key) {
-    case '[':
-      e.preventDefault();
-      useCurrentBtn.click();
-      break;
-    case ']':
-      e.preventDefault();
-      useCurrentEndBtn.click();
-      break;
+    case '[': e.preventDefault(); useCurrentBtn.click(); break;
+    case ']': e.preventDefault(); useCurrentEndBtn.click(); break;
     case ' ':
       e.preventDefault();
-      if (sourceVideo.paused) sourceVideo.play();
-      else sourceVideo.pause();
+      if (sourceVideo.paused) sourceVideo.play(); else sourceVideo.pause();
       break;
     case 'ArrowLeft':
       e.preventDefault();
-      sourceVideo.currentTime = Math.max(0,
-        sourceVideo.currentTime - (e.shiftKey ? 5 : 1));
+      sourceVideo.currentTime = Math.max(0, sourceVideo.currentTime - (e.shiftKey ? 5 : 1));
       break;
     case 'ArrowRight':
       e.preventDefault();
-      sourceVideo.currentTime = Math.min(sourceVideo.duration,
-        sourceVideo.currentTime + (e.shiftKey ? 5 : 1));
+      sourceVideo.currentTime = Math.min(sourceVideo.duration, sourceVideo.currentTime + (e.shiftKey ? 5 : 1));
       break;
-    case 'Home':
-      e.preventDefault();
-      sourceVideo.currentTime = 0;
-      break;
-    case 'End':
-      e.preventDefault();
-      sourceVideo.currentTime = sourceVideo.duration;
-      break;
+    case 'Home': e.preventDefault(); sourceVideo.currentTime = 0; break;
+    case 'End':  e.preventDefault(); sourceVideo.currentTime = sourceVideo.duration; break;
   }
 });
 
-/* =========================================================
-   ВОДЯНОЙ ЗНАК
-   ========================================================= */
 function setOverlayType(type) {
   overlayType = type;
   overlayTypeChips.querySelectorAll('.chip').forEach(c =>
@@ -2561,24 +2268,18 @@ function overlayXY(pos, W, H, w, h, pad) {
   const y = { t: pad, m: cy - h/2, b: H - pad - h };
   const v = pos[0];
   const hz = pos[1];
-  return {
-    x: x[hz] != null ? x[hz] : pad,
-    y: y[v]  != null ? y[v]  : pad
-  };
+  return { x: x[hz] != null ? x[hz] : pad, y: y[v] != null ? y[v] : pad };
 }
 
 function applyOverlay(ctx, W, H) {
   if (overlayType === 'none') return;
-
   if (overlayType === 'text') {
     const text = (overlayText.value || '').trim();
     if (!text) return;
-
     const sizePct = parseFloat(overlaySize.value) || 6;
     const fontSize = Math.max(8, Math.round(H * sizePct / 100));
     const opacity = parseInt(overlayOpacity.value, 10) / 100;
     const pad = Math.round(Math.min(W, H) * 0.025);
-
     ctx.save();
     ctx.globalAlpha = opacity;
     ctx.font = `700 ${fontSize}px 'Segoe UI', system-ui, sans-serif`;
@@ -2587,22 +2288,18 @@ function applyOverlay(ctx, W, H) {
     ctx.shadowColor = 'rgba(0,0,0,.65)';
     ctx.shadowBlur = Math.max(2, Math.round(fontSize * 0.25));
     ctx.shadowOffsetX = 1; ctx.shadowOffsetY = 1;
-
     const metrics = ctx.measureText(text);
     const { x, y } = overlayXY(overlayPos.value, W, H, metrics.width, fontSize, pad);
     ctx.fillText(text, x, y);
     ctx.restore();
     return;
   }
-
   if (overlayType === 'image' && overlayImage && overlayImage.naturalWidth) {
     const sizePct = parseFloat(overlayImgSize.value) || 15;
     const opacity = parseInt(overlayImgOpacity.value, 10) / 100;
     const pad = Math.round(Math.min(W, H) * 0.025);
-
     const ow = Math.max(8, Math.round(W * sizePct / 100));
     const oh = Math.round(ow * (overlayImage.naturalHeight / overlayImage.naturalWidth));
-
     const { x, y } = overlayXY(overlayImgPos.value, W, H, ow, oh, pad);
     ctx.save();
     ctx.globalAlpha = opacity;
@@ -2611,9 +2308,6 @@ function applyOverlay(ctx, W, H) {
   }
 }
 
-/* =========================================================
-   ПРЕВЬЮ РУЧКИ
-   ========================================================= */
 function positionHandlePreview(clientX) {
   const rect = timelineEl.getBoundingClientRect();
   const w = 144, h = 110;
@@ -2628,7 +2322,6 @@ function drawHandlePreview(time) {
   if (previewSeeking) { previewTarget = time; return; }
   previewSeeking = true;
   previewTarget = time;
-
   seekVideo(sourceVideo, time).then(() => {
     const c = handlePreviewCanvas;
     c.width = 140; c.height = 90;
@@ -2641,7 +2334,6 @@ function drawHandlePreview(time) {
     cx.fillRect(0, 0, c.width, c.height);
     try { cx.drawImage(sourceVideo, (c.width - dw) / 2, (c.height - dh) / 2, dw, dh); } catch {}
     handlePreviewTime.textContent = previewTarget.toFixed(2) + ' с';
-
     if (previewTarget !== time) {
       const next = previewTarget;
       previewSeeking = false;
@@ -2652,9 +2344,6 @@ function drawHandlePreview(time) {
   }).catch(() => { previewSeeking = false; });
 }
 
-/* =========================================================
-   ПАКЕТНЫЙ РЕЖИМ
-   ========================================================= */
 batchModeEl.addEventListener('change', () => {
   fileInput.multiple = batchModeEl.checked;
   if (!batchModeEl.checked) {
@@ -2666,7 +2355,6 @@ batchModeEl.addEventListener('change', () => {
 function showBatchUI() {
   document.querySelector('.batch-list')?.remove();
   if (!batchFiles.length) return;
-
   const wrap = document.createElement('div');
   wrap.className = 'batch-list show';
   wrap.innerHTML = `
@@ -2682,9 +2370,6 @@ function showBatchUI() {
   dropEl.insertAdjacentElement('afterend', wrap);
 }
 
-/* =========================================================
-   СЛАЙД-ШОУ
-   ========================================================= */
 slideshowBtn.addEventListener('click', () => {
   const input = document.createElement('input');
   input.type = 'file';
@@ -2693,7 +2378,6 @@ slideshowBtn.addEventListener('click', () => {
   input.onchange = async e => {
     const files = [...e.target.files];
     if (!files.length) return;
-
     slideshowImages = [];
     for (const f of files) {
       const url = URL.createObjectURL(f);
@@ -2705,26 +2389,22 @@ slideshowBtn.addEventListener('click', () => {
       });
       slideshowImages.push(img);
     }
-
     thumbWrap.innerHTML = '';
     const el = document.createElement('img');
     el.src = slideshowImages[0].src;
     thumbWrap.appendChild(el);
     previewEl.classList.add('show');
     previewEl.classList.remove('video-mode');
-
     metaInfo.innerHTML = `
       <b>📽 Слайд-шоу</b><br>
       Изображений: <b>${slideshowImages.length}</b><br>
       Длительность кадра: <b>${vidDuration.value} с</b><br>
       Итого: <b>${(slideshowImages.length * parseInt(vidDuration.value, 10)).toFixed(1)} с</b>
     `;
-
     sourceType = 'image';
     sourceFile = new File([], 'slideshow');
     sourceImage = slideshowImages[0];
     rebuildFormats();
-
     const webmBtn = formatsEl.querySelector('.fmt[data-format="webm"]:not(:disabled)');
     if (webmBtn) {
       formatsEl.querySelectorAll('.fmt').forEach(b => b.classList.toggle('active', b === webmBtn));
@@ -2754,21 +2434,17 @@ async function runSlideshow() {
   const imgs = slideshowImages;
   const perImage = Math.max(1, parseInt(vidDuration.value, 10) || 3);
   const fps = parseInt(vidFps.value, 10) || 30;
-  const fmt = (currentFormat === 'webm' || currentFormat === 'mp4')
-    ? currentFormat : 'webm';
+  const fmt = (currentFormat === 'webm' || currentFormat === 'mp4') ? currentFormat : 'webm';
   const mime = pickVideoMime(fmt);
-
   const W0 = imgs[0].naturalWidth;
   const H0 = imgs[0].naturalHeight;
   const W = W0 + (W0 % 2);
   const H = H0 + (H0 % 2);
-
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = 'high';
-
   let stream, track, manual = false;
   try {
     stream = canvas.captureStream(0);
@@ -2780,11 +2456,8 @@ async function runSlideshow() {
     track = stream.getVideoTracks()[0];
     manual = false;
   }
-
-  const bps = computeBitrate(W, H, fps, currentVPreset,
-    parseFloat(videoCustomBitrate.value) || 0);
+  const bps = computeBitrate(W, H, fps, currentVPreset, parseFloat(videoCustomBitrate.value) || 0);
   const recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bps });
-
   return new Promise((resolve, reject) => {
     const chunks = [];
     recorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
@@ -2793,15 +2466,12 @@ async function runSlideshow() {
       try { stream.getTracks().forEach(t => t.stop()); } catch {}
       resolve({ blob: new Blob(chunks, { type: mime }), name: 'slideshow.' + fmt });
     };
-
     recorder.start(200);
-
     const totalPerImage = Math.round(perImage * fps);
     const totalFrames = totalPerImage * imgs.length;
     const interval = 1000 / fps;
     let frameIdx = 0;
     const startWall = performance.now();
-
     const step = () => {
       if (cancelRequested) {
         setTimeout(() => { try { recorder.stop(); } catch (e) { reject(e); } }, 100);
@@ -2811,18 +2481,14 @@ async function runSlideshow() {
         setTimeout(() => { try { recorder.stop(); } catch (e) { reject(e); } }, 200);
         return;
       }
-
       const imgIdx = Math.floor(frameIdx / totalPerImage);
       const img = imgs[imgIdx];
       const tInSlide = (frameIdx % totalPerImage) / totalPerImage;
-
       const crossDur = 0.4;
       const tSec = tInSlide * perImage;
       const timeLeft = perImage - tSec;
-
       ctx.fillStyle = '#000';
       ctx.fillRect(0, 0, W, H);
-
       if (imgIdx < imgs.length - 1 && timeLeft < crossDur) {
         const k = 1 - timeLeft / crossDur;
         drawFit(ctx, img, W, H, 1 - k);
@@ -2834,32 +2500,24 @@ async function runSlideshow() {
       } else {
         drawFit(ctx, img, W, H, 1);
       }
-
       applyOverlay(ctx, W, H);
       if (manual) try { track.requestFrame(); } catch {}
-
       frameIdx++;
       const p = frameIdx / totalFrames;
       showProgress(p * 100);
       showFrameCounter(`📽 Слайд <b>${imgIdx + 1}</b>/${imgs.length} · кадров: <b>${frameIdx}</b>/${totalFrames}`);
-
       const target = startWall + frameIdx * interval;
       const delay = Math.max(0, target - performance.now());
       setTimeout(step, delay);
     };
-
     setTimeout(step, 80);
   });
 }
 
-/* =========================================================
-   CONVERT — универсальные функции
-   ========================================================= */
 async function convertImageSource(img, base, fmt, opts) {
   const { bg, q, customMbps } = opts;
   const scale = parseFloat(scaleSelect.value);
   let blob;
-
   switch (fmt) {
     case 'ico': {
       const sizes = [...sizeBox.querySelectorAll('input:checked')]
@@ -2896,12 +2554,10 @@ async function convertImageSource(img, base, fmt, opts) {
       const dur = Math.max(1, Math.min(60, parseInt(vidDuration.value, 10) || 5));
       const fps = parseInt(vidFps.value, 10) || 60;
       const fitMode = fitModeEl.value;
-
       const c = renderFrame(img, w, h, fitMode, bg || '#000000');
       const tmpImg = new Image();
       tmpImg.src = c.toDataURL('image/png');
       await new Promise(r => tmpImg.onload = r);
-
       const mime = pickVideoMime(fmt);
       const res = await imageToVideoHQ(
         tmpImg, w, h, bg || '#000000', dur, fps, currentVPreset, customMbps, mime
@@ -2920,7 +2576,6 @@ async function convertImageSource(img, base, fmt, opts) {
     default:
       throw new Error('неизвестный формат: ' + fmt);
   }
-
   return { blob, name: base + '.' + (fmt === 'jpg' ? 'jpg' : fmt) };
 }
 
@@ -2932,7 +2587,6 @@ async function convertVideoElement(video, base, fmt, opts) {
   if (e <= s) e = s + 1;
   if (vDur) e = Math.min(e, vDur);
   let blob;
-
   switch (fmt) {
     case 'webm': case 'mp4': {
       const mime = pickVideoMime(fmt);
@@ -2984,7 +2638,6 @@ async function convertVideoElement(video, base, fmt, opts) {
     default:
       throw new Error('неизвестный формат: ' + fmt);
   }
-
   return { blob, name: base + '.' + fmt };
 }
 
@@ -3000,9 +2653,6 @@ async function convertVideoSource(base, bg, q, customMbps) {
   outputName = res.name;
 }
 
-/* =========================================================
-   ПАКЕТНАЯ ОБРАБОТКА
-   ========================================================= */
 async function fileToSource(file) {
   const url = URL.createObjectURL(file);
   if (file.type.startsWith('image/')) {
@@ -3022,20 +2672,16 @@ async function fileToSource(file) {
 async function runBatch(base, bg, q, customMbps) {
   if (!batchFiles.length) throw new Error('Не выбрано ни одного файла');
   if (typeof JSZip === 'undefined') throw new Error('JSZip не загружен — проверьте интернет');
-
   const zip = new JSZip();
   const folder = zip.folder('converted');
   const fmt = currentFormat;
-
   for (let i = 0; i < batchFiles.length; i++) {
     const f = batchFiles[i];
     setStatus(`[${i + 1}/${batchFiles.length}] ${f.name}…`);
     showProgress((i / batchFiles.length) * 100);
-
     let loaded;
     try { loaded = await fileToSource(f); }
     catch (e) { console.warn('Пропуск ' + f.name + ': ' + e.message); continue; }
-
     try {
       const baseName = f.name.replace(/\.[^.]+$/, '');
       const res = loaded.type === 'image'
@@ -3049,19 +2695,14 @@ async function runBatch(base, bg, q, customMbps) {
       URL.revokeObjectURL(loaded.url);
     }
   }
-
   showProgress(100);
   setStatus('Упаковка в ZIP…');
   outputBlob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
   outputName = base + '_batch.zip';
 }
 
-/* =========================================================
-   MAIN CONVERT
-   ========================================================= */
 convertBtn.addEventListener('click', async () => {
   if (!currentFormat && !batchModeEl.checked && !slideshowImages.length) return;
-
   cancelRequested = false;
   convertBtn.disabled = true;
   resultEl.classList.remove('show');
@@ -3069,13 +2710,11 @@ convertBtn.addEventListener('click', async () => {
   showProgress(0);
   hideFrameCounter();
   setStatus('Конвертация…');
-
   try {
     const bg   = getBackground();
     const q    = parseInt(qualityRange.value, 10) / 100;
     const customMbps = parseFloat(videoCustomBitrate.value) || 0;
     const base = (sourceFile?.name || 'file').replace(/\.[^.]+$/, '') || 'file';
-
     if (slideshowImages.length > 0 && (currentFormat === 'webm' || currentFormat === 'mp4')) {
       setStatus('Кодирование слайд-шоу…');
       const res = await runSlideshow();
@@ -3090,7 +2729,6 @@ convertBtn.addEventListener('click', async () => {
     } else if (sourceType === 'video') {
       await convertVideoSource(base, bg, q, customMbps);
     }
-
     if (outputBlob) {
       showResult(outputBlob, currentFormat);
       setStatus('Готово! Можно скачать файл.', 'ok');
@@ -3105,19 +2743,14 @@ convertBtn.addEventListener('click', async () => {
   }
 });
 
-/* =========================================================
-   RESULT
-   ========================================================= */
 function showResult(blob, format) {
   previewArea.querySelectorAll('img,video').forEach(el => {
     if (el.src && el.src.startsWith('blob:')) URL.revokeObjectURL(el.src);
   });
   previewArea.innerHTML = '';
-
   resultFormat.textContent = (FORMAT_LABELS[format] || format).toUpperCase();
   resultSize.textContent = formatBytes(blob.size);
   resultExtra.style.display = 'none';
-
   if (format === 'ico') {
     renderIcoPreview(blob);
   } else if (format === 'webm' || format === 'mp4') {
@@ -3130,7 +2763,6 @@ function showResult(blob, format) {
     v.muted = true;
     v.playsInline = true;
     previewArea.appendChild(v);
-
     v.onloadedmetadata = () => {
       const meta = window.__lastVideoMeta;
       const parts = [`${v.videoWidth}×${v.videoHeight}`];
@@ -3150,7 +2782,6 @@ function showResult(blob, format) {
     img.alt = 'результат';
     previewArea.appendChild(img);
   }
-
   resultEl.classList.add('show');
   resultEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
@@ -3161,19 +2792,15 @@ function renderIcoPreview(blob) {
     const buf = reader.result;
     const view = new DataView(buf);
     const count = view.getUint16(4, true);
-
     const wrap = document.createElement('div');
     wrap.className = 'ico-list';
-
     for (let i = 0; i < count; i++) {
       const o = 6 + i * 16;
       const w = buf.getUint8(o) || 256;
       const dataLen = view.getUint32(o + 8, true);
       const dataOff = view.getUint32(o + 12, true);
-
       const png = new Blob([new Uint8Array(buf, dataOff, dataLen)], { type: 'image/png' });
       const url = URL.createObjectURL(png);
-
       const item = document.createElement('div');
       item.className = 'ico-item';
       const disp = Math.min(w, 64);
@@ -3185,9 +2812,6 @@ function renderIcoPreview(blob) {
   reader.readAsArrayBuffer(blob);
 }
 
-/* =========================================================
-   DOWNLOAD
-   ========================================================= */
 downloadBtn.addEventListener('click', () => {
   if (!outputBlob) return;
   const url = URL.createObjectURL(outputBlob);
@@ -3200,20 +2824,12 @@ downloadBtn.addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
 });
 
-/* =========================================================
-   INIT
-   ========================================================= */
 (async () => {
   await detectSupport();
   applyFormatUI();
   if (support['video/webm;vp9']) videoCodec.value = 'vp9';
   loadSettings();
   applyTheme(localStorage.getItem('media-theme') || 'dark');
-
-  setUrlNote(
-    '✅ Бэкенд подключён: media-proxy.zahar55nuri.workers.dev — можно вставлять прямые ссылки на файлы.',
-    'ok'
-  );
 })();
 </script>
 </body>
