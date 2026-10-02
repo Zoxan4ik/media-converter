@@ -810,9 +810,9 @@
 
 <script>
 /* =========================================================
-   ⚙️  ПРОКСИ
+   ⚙️  ПРОКСИ — боевой (Cloudflare Worker)
    ========================================================= */
-const PROXY_URL = 'http://localhost:3001/proxy?url=';
+const PROXY_URL = 'https://media-proxy.zahar55nuri.workers.dev/?url=';
 
 const PUBLIC_PROXIES = [
   { name: 'напрямую',     build: u => u },
@@ -905,7 +905,6 @@ const bgColorEl     = $('bgColor');
 const customColorGroup = $('customColorGroup');
 const bgHint        = $('bgHint');
 
-// Trim UI elements
 const timelineEl    = $('timeline');
 const tlStrip       = $('tlStrip');
 const tlRange       = $('tlRange');
@@ -937,7 +936,6 @@ const resultExtra   = $('resultExtra');
 const previewArea   = $('previewArea');
 const downloadBtn   = $('downloadBtn');
 
-// === Новые элементы (1–5, 8, 11) ===
 const themeToggle       = $('themeToggle');
 const batchModeEl       = $('batchMode');
 const slideshowBtn      = $('slideshowBtn');
@@ -971,13 +969,11 @@ let sourceURL    = null;
 let currentVPreset = 'high';
 let cancelRequested = false;
 
-// Timeline state
 let tlBuilt = false;
 let tlDragging = null;
 let tlStopAt = null;
 let tlPlayheadRAF = null;
 
-// Новое состояние
 let batchFiles = [];
 let slideshowImages = [];
 let overlayImage = null;
@@ -1373,7 +1369,7 @@ async function loadFromUrl(rawUrl) {
   convertBtn.disabled = true;
   setUrlNote(
     '❌ Не удалось скачать: ' + (lastErr?.message || 'сеть/CORS') +
-    '. Проверьте, что бэкенд запущен (npm start в папке backend).',
+    '. Проверьте, что бэкенд доступен (Cloudflare Worker).',
     'err'
   );
   setStatus('Ошибка загрузки по ссылке.', 'err');
@@ -2426,7 +2422,7 @@ async function videoToGif(video, startTime, endTime, fps, targetW, targetH, onPr
 }
 
 /* =========================================================
-   ТЕМА (пункт 5)
+   ТЕМА
    ========================================================= */
 function applyTheme(theme) {
   document.body.classList.toggle('light', theme === 'light');
@@ -2439,7 +2435,7 @@ themeToggle.addEventListener('click', () => {
 });
 
 /* =========================================================
-   LOCALSTORAGE (пункт 4)
+   LOCALSTORAGE
    ========================================================= */
 const LS_KEY = 'media-converter-settings';
 const LS_FIELDS = [
@@ -2486,7 +2482,7 @@ LS_FIELDS.forEach(id => {
 });
 
 /* =========================================================
-   ШОРТКАТЫ (пункт 1)
+   ШОРТКАТЫ
    ========================================================= */
 document.addEventListener('keydown', e => {
   const tag = (document.activeElement.tagName || '').toUpperCase();
@@ -2529,7 +2525,7 @@ document.addEventListener('keydown', e => {
 });
 
 /* =========================================================
-   ВОДЯНОЙ ЗНАК (пункт 8)
+   ВОДЯНОЙ ЗНАК
    ========================================================= */
 function setOverlayType(type) {
   overlayType = type;
@@ -2615,7 +2611,7 @@ function applyOverlay(ctx, W, H) {
 }
 
 /* =========================================================
-   ПРЕВЬЮ РУЧКИ (пункт 2)
+   ПРЕВЬЮ РУЧКИ
    ========================================================= */
 function positionHandlePreview(clientX) {
   const rect = timelineEl.getBoundingClientRect();
@@ -2656,7 +2652,7 @@ function drawHandlePreview(time) {
 }
 
 /* =========================================================
-   ПАКЕТНЫЙ РЕЖИМ (пункт 3)
+   ПАКЕТНЫЙ РЕЖИМ
    ========================================================= */
 batchModeEl.addEventListener('change', () => {
   fileInput.multiple = batchModeEl.checked;
@@ -2686,7 +2682,7 @@ function showBatchUI() {
 }
 
 /* =========================================================
-   СЛАЙД-ШОУ (пункт 11)
+   СЛАЙД-ШОУ
    ========================================================= */
 slideshowBtn.addEventListener('click', () => {
   const input = document.createElement('input');
@@ -2728,7 +2724,6 @@ slideshowBtn.addEventListener('click', () => {
     sourceImage = slideshowImages[0];
     rebuildFormats();
 
-    // Автоматически выбрать WEBM, если доступен
     const webmBtn = formatsEl.querySelector('.fmt[data-format="webm"]:not(:disabled)');
     if (webmBtn) {
       formatsEl.querySelectorAll('.fmt').forEach(b => b.classList.toggle('active', b === webmBtn));
@@ -2992,7 +2987,6 @@ async function convertVideoElement(video, base, fmt, opts) {
   return { blob, name: base + '.' + fmt };
 }
 
-// Обёртки для одиночного режима
 async function convertImage(base, bg, q, customMbps) {
   const res = await convertImageSource(sourceImage, base, currentFormat, { bg, q, customMbps });
   outputBlob = res.blob;
@@ -3216,7 +3210,7 @@ downloadBtn.addEventListener('click', () => {
   applyTheme(localStorage.getItem('media-theme') || 'dark');
 
   setUrlNote(
-    '✅Подключёно — можно вставлять прямые ссылки на файлы.',
+    '✅ Бэкенд подключён: media-proxy.zahar55nuri.workers.dev — можно вставлять прямые ссылки на файлы.',
     'ok'
   );
 })();
